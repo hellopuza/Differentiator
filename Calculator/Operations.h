@@ -31,10 +31,10 @@ const double PI = atan(1) * 4;
 enum OperationsCodes
 {
     OP_ERR      = 0x00,
-    OP_MUL      = 0x01,
-    OP_ADD      = 0x02,
-    OP_DIV      = 0x03,
-    OP_SUB      = 0x04,
+    OP_ADD      = 0x01,
+    OP_SUB      = 0x02,
+    OP_MUL      = 0x03,
+    OP_DIV      = 0x04,
     OP_POW      = 0x05,
     OP_ARCCOS   = 0x06,
     OP_ARCCOSH  = 0x07,
@@ -68,10 +68,10 @@ struct operation
 static operation op_names[] =
 {
     { OP_ERR      , "#ERR#"   },
-    { OP_MUL      , "*"       },
     { OP_ADD      , "+"       },
-    { OP_DIV      , "/"       },
     { OP_SUB      , "-"       },
+    { OP_MUL      , "*"       },
+    { OP_DIV      , "/"       },
     { OP_POW      , "^"       },
     { OP_ARCCOS   , "arccos"  },
     { OP_ARCCOSH  , "arccosh" },
