@@ -22,6 +22,7 @@
 const size_t NUM_TYPE_SIZE = sizeof(NUM_TYPE);
 
 const double PI = atan(1) * 4;
+const double E  = exp(1);
 
 /*------------------------------------------------------------------------------
                    Operations codes                                            *

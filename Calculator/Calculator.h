@@ -84,13 +84,13 @@ static const char* CALCULATOR_LOGNAME = "calculator.log";
                                                CalcPrintError(CALCULATOR_LOGNAME, __FILE__, __LINE__, __FUNC_NAME__, err, 0); \
                                                PrintBadExpr(CALCULATOR_LOGNAME, expr, len);                                   \
                                                return 0;                                                                      \
-                                           }
+                                           } //
 
 #define CALC_ASSERTOK(cond, err) if (cond)                                                                        \
                                  {                                                                                \
                                    CalcPrintError(CALCULATOR_LOGNAME, __FILE__, __LINE__, __FUNC_NAME__, err, 1); \
                                    exit(err);                                                                     \
-                                 }
+                                 } //
 
 
 //==============================================================================
@@ -101,7 +101,7 @@ static const char* CALCULATOR_LOGNAME = "calculator.log";
 
 
 static const char* GRAPH_FILENAME = "Equation.dot";
-const size_t       MAX_STR_LEN    = 256;
+const size_t       MAX_STR_LEN    = 4096;
 
 enum NODE_TYPE 
 {
@@ -349,6 +349,17 @@ Node<CalcNodeData>* pass_Function (Expression& expr);
 Node<CalcNodeData>* pass_Number (Expression& expr);
 
 //------------------------------------------------------------------------------
+/*! @brief   Check if there are need brackets for operator.
+ *
+ *  @param   node_cur    Current node
+ *  @param   child       Current node's child
+ *
+ *  @return  true if need, else false
+ */
+
+bool needBrackets (Node<CalcNodeData>* node, Node<CalcNodeData>* child);
+
+//------------------------------------------------------------------------------
 /*! @brief   Function identifier.
  *
  *  @param   word        C string to be recognized
@@ -357,6 +368,16 @@ Node<CalcNodeData>* pass_Number (Expression& expr);
  */
 
 char findFunc (const char* word);
+
+//------------------------------------------------------------------------------
+/*! @brief   Optimize expression process.
+ *
+ *  @param   node_cur    Current node
+ *
+ *  @return  error code
+ */
+
+int Optimize (Node<CalcNodeData>* node_cur);
 
 //------------------------------------------------------------------------------
 /*! @brief   Prints an expression indicating an error.

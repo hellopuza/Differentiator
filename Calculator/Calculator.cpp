@@ -17,7 +17,10 @@ Calculator::Calculator () :
     tree_         ((char*)"expression"),
     variables_    ((char*)"variables"),
     state_        (CALC_OK)
-{}
+{
+    variables_.Push({ PI, "pi" });
+    variables_.Push({ E,  "e" });
+}
 
 //------------------------------------------------------------------------------
 
@@ -26,7 +29,10 @@ Calculator::Calculator (char* filename) :
     tree_         (GetTrueFileName(filename)),
     variables_    ((char*)"variables"),
     state_        (CALC_OK)
-{}
+{
+    variables_.Push({ PI, "pi" });
+    variables_.Push({ E,  "e" });
+}
 
 //------------------------------------------------------------------------------
 
@@ -68,6 +74,9 @@ int Calculator::Run ()
 
             tree_.Clean();
             variables_.Clean();
+
+            variables_.Push({ PI, "pi" });
+            variables_.Push({ E,  "e" });
 
             printf("Continue [Y/n]? ");
             running = scanAns();
@@ -372,8 +381,8 @@ char* ScanExpr ()
 
 int Tree2Expr (const Tree<CalcNodeData>& tree, Expression& expr)
 {
+    assert(expr.str != nullptr);
     expr.symb_cur = expr.str;
-
     int err = Node2Str(tree.root_, &expr.symb_cur);
     CALC_ASSERTOK(err, err);
 
@@ -387,6 +396,7 @@ int Tree2Expr (const Tree<CalcNodeData>& tree, Expression& expr)
 int Node2Str (Node<CalcNodeData>* node_cur, char** str)
 {
     assert(node_cur != nullptr);
+    assert(*str     != nullptr);
 
     int err = 0;
 
@@ -397,7 +407,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
         if ((node_cur->right_ == nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_FUNC_WRONG_ARGUMENT;
 
-        sprintf(*str, node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().op.word);
         *str += strlen(node_cur->getData().op.word);
 
         sprintf(*str, "(");
@@ -416,12 +426,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
             (node_cur->left_  == nullptr) && (node_cur->getData().op.code != OP_SUB))
             return CALC_TREE_OPER_WRONG_ARGUMENTS;
 
-        if (  ( ((node_cur->       getData().op.code == OP_MUL) || (node_cur->       getData().op.code == OP_DIV)) &&
-                ((node_cur->left_->getData().op.code == OP_ADD) || (node_cur->left_->getData().op.code == OP_SUB))   ) ||
-
-              ( (node_cur->getData().op.code == OP_POW)                 &&
-                (node_cur->left_->getData().node_type == NODE_OPERATOR) &&
-                (node_cur->left_->getData().op.code != OP_POW)            )  )
+        if (needBrackets(node_cur, node_cur->left_))
         {
             sprintf(*str, "(");
             *str += 1;
@@ -442,15 +447,10 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
             if (err) return err;
         }
 
-        sprintf(*str, node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().op.word);
         *str += 1;
 
-        if (  ( ((node_cur->        getData().op.code == OP_MUL) || (node_cur->        getData().op.code == OP_DIV)) &&
-                ((node_cur->right_->getData().op.code == OP_ADD) || (node_cur->right_->getData().op.code == OP_SUB))   ) ||
-
-              ( (node_cur->getData().op.code == OP_POW)                  &&
-                (node_cur->right_->getData().node_type == NODE_OPERATOR) &&
-                (node_cur->right_->getData().op.code != OP_POW)            )  )
+        if (needBrackets(node_cur, node_cur->right_))
         {
             sprintf(*str, "(");
             *str += 1;
@@ -478,7 +478,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
         if ((node_cur->right_ != nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_NUM_WRONG_ARGUMENT;
 
-        sprintf(*str, node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().op.word);
         *str += strlen(node_cur->getData().op.word);
 
         break;
@@ -685,6 +685,19 @@ Node<CalcNodeData>* pass_Number (Expression& expr)
 
 //------------------------------------------------------------------------------
 
+bool needBrackets (Node<CalcNodeData>* node, Node<CalcNodeData>* child)
+{
+    if  ( ((node-> getData().op.code == OP_MUL) || (node-> getData().op.code == OP_DIV)) &&
+          ((child->getData().op.code == OP_ADD) || (child->getData().op.code == OP_SUB))   )
+        return true;
+    else
+        return ( (node-> getData().op.code   == OP_POW)        &&
+                 (child->getData().node_type == NODE_OPERATOR) &&
+                 (child->getData().op.code   != OP_POW)          );
+}
+
+//------------------------------------------------------------------------------
+
 char findFunc (const char* word)
 {
     assert(word != nullptr);
@@ -695,6 +708,13 @@ char findFunc (const char* word)
 
     if (p_func_struct != nullptr) return p_func_struct->code;
 
+    return 0;
+}
+
+//------------------------------------------------------------------------------
+
+int Optimize (Node<CalcNodeData>* node_cur)
+{
     return 0;
 }
 

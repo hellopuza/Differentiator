@@ -79,14 +79,14 @@ static const char* DIFFERENTIATOR_LOGNAME = "differentiator.log";
                    if (checkBase (tree_.root_))                                                           \
                    {                                                                                      \
                      DIFF_ASSERTOK(state_, state_);                                                       \
-                   }
+                   } //
 
 #define DIFF_ASSERTOK(cond, err) if (cond)                                                                    \
                                 {                                                                             \
                                   PrintError(DIFFERENTIATOR_LOGNAME, __FILE__, __LINE__, __FUNC_NAME__, err); \
                                   tree_.Dump();                                                               \
-                                  exit(err); /**/                                                             \
-                                }
+                                  exit(err);                                                                  \
+                                } //
 
 
 //==============================================================================
@@ -95,6 +95,18 @@ static const char* DIFFERENTIATOR_LOGNAME = "differentiator.log";
 *///----------------------------------------------------------------------------
 //==============================================================================
 
+#define PREV_CONNECT(old_node, new_node)                                                \
+        if (old_node->prev_ != nullptr)                                                 \
+        {                                                                               \
+            if (old_node->prev_->left_ == old_node) old_node->prev_->left_  = new_node; \
+            else                                    old_node->prev_->right_ = new_node; \
+        }                                                                               \
+        else tree_.root_ = new_node;                                                    \
+                                                                                        \
+        new_node->prev_ = old_node->prev_;                                              \
+                                                                                        \
+        new_node->recountPrev();                                                        \
+        new_node->recountDepth(); //
 
 
 class Differentiator
@@ -104,7 +116,11 @@ private:
     int state_;
     char* filename_;
 
+    Variable           diff_var_ = {0, "x"};
     Tree<CalcNodeData> tree_;
+    Stack<Variable>    constants_;
+
+
     Stack<char*> path2badnode_;
 
 public:
@@ -154,14 +170,6 @@ public:
 private:
 
 //------------------------------------------------------------------------------
-/*! @brief   Write derivative to console or to file.
- *
- *  @return  error code
- */
-
-    void Write ();
-
-//------------------------------------------------------------------------------
 /*! @brief   Differentiating process.
  *
  *  @param   node_cur    Current node
@@ -170,6 +178,14 @@ private:
  */
 
     int Differentiate (Node<CalcNodeData>* node_cur);
+
+//------------------------------------------------------------------------------
+/*! @brief   Write derivative to console or to file.
+ *
+ *  @return  error code
+ */
+
+    void Write ();
 
 //------------------------------------------------------------------------------
 /*! @brief   Prints an error wih description to the console and to the log file.

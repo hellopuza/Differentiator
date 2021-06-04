@@ -32,14 +32,14 @@
                    {                                    \
                      Dump(DUMP_NAME);                   \
                      TREE_ASSERTOK(errCode_, errCode_); \
-                   }
+                   } //
 
 
 #define TREE_ASSERTOK(cond, err) if (cond)                                                            \
                                  {                                                                    \
                                    PrintError(TREE_LOGNAME , __FILE__, __LINE__, __FUNC_NAME__, err); \
-                                   exit(err); /**/                                                    \
-                                 }
+                                   exit(err);                                                         \
+                                 } //
 
 static int tree_id = 0;
 
