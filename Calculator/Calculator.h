@@ -124,7 +124,7 @@ struct CalcNodeData
 };
 
 template<> const char*            PRINT_TYPE<CalcNodeData> = "CalcNodeData";
-template<> constexpr CalcNodeData POISON<CalcNodeData>     = {};
+template<> constexpr CalcNodeData POISON    <CalcNodeData> = {};
 
 bool isPOISON  (CalcNodeData value);
 void TypePrint (FILE* fp, const CalcNodeData& node_data);
@@ -137,7 +137,7 @@ struct Variable
 };
 
 template<> const char*        PRINT_TYPE<Variable> = "Variable";
-template<> constexpr Variable POISON<Variable>     = {};
+template<> constexpr Variable POISON    <Variable> = {};
 
 bool isPOISON  (Variable value);
 void TypePrint (FILE* fp, const Variable& var);
@@ -372,12 +372,23 @@ char findFunc (const char* word);
 //------------------------------------------------------------------------------
 /*! @brief   Optimize expression process.
  *
- *  @param   node_cur    Current node
+ *  @param   tree        Tree to optimize
  *
  *  @return  error code
  */
 
-int Optimize (Node<CalcNodeData>* node_cur);
+void Optimize (Tree<CalcNodeData>& tree);
+
+//------------------------------------------------------------------------------
+/*! @brief   Optimize expression process.
+ *
+ *  @param   tree        Tree to optimize
+ *  @param   node_cur    Node to optimize
+ *
+ *  @return  return 0 if optimized, else 1
+ */
+
+bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur);
 
 //------------------------------------------------------------------------------
 /*! @brief   Prints an expression indicating an error.

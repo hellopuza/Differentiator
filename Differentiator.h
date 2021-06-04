@@ -95,19 +95,6 @@ static const char* DIFFERENTIATOR_LOGNAME = "differentiator.log";
 *///----------------------------------------------------------------------------
 //==============================================================================
 
-#define PREV_CONNECT(old_node, new_node)                                                \
-        if (old_node->prev_ != nullptr)                                                 \
-        {                                                                               \
-            if (old_node->prev_->left_ == old_node) old_node->prev_->left_  = new_node; \
-            else                                    old_node->prev_->right_ = new_node; \
-        }                                                                               \
-        else tree_.root_ = new_node;                                                    \
-                                                                                        \
-        new_node->prev_ = old_node->prev_;                                              \
-                                                                                        \
-        new_node->recountPrev();                                                        \
-        new_node->recountDepth(); //
-
 
 class Differentiator
 {

@@ -713,9 +713,187 @@ char findFunc (const char* word)
 
 //------------------------------------------------------------------------------
 
-int Optimize (Node<CalcNodeData>* node_cur)
+void Optimize (Tree<CalcNodeData>& tree)
 {
-    return 0;
+    bool running = true;
+    while (running)
+    {
+        running = Optimize(tree, tree.root_);
+    }
+    tree.root_->recountDepth();
+}
+
+//------------------------------------------------------------------------------
+
+#define OPTIMIZE_ACTION(node_to_place)                   \
+        {                                                \
+            if (node_cur->prev_ == nullptr)              \
+                tree.root_ = node_to_place;              \
+            else                                         \
+            if (node_cur->prev_->left_ == node_cur)      \
+                node_cur->prev_->left_ = node_to_place;  \
+            else                                         \
+                node_cur->prev_->right_ = node_to_place; \
+                                                         \
+            node_to_place->prev_ = node_cur->prev_;      \
+            node_to_place = nullptr;                     \
+                                                         \
+            node_cur->~Node();                           \
+            delete node_cur;                             \
+            return true;                                 \
+        } //
+
+//------------------------------------------------------------------------------
+
+#define CALCULATE_ACTION(node, operation)                                              \
+        {                                                                              \
+            NUM_TYPE number1 = 0;                                                      \
+            NUM_TYPE number2 = 0;                                                      \
+                                                                                       \
+            err = sscanf(node->left_ ->getData().op.word, NUM_PRINT_FORMAT, &number1); \
+            assert(err);                                                               \
+                                                                                       \
+            err = sscanf(node->right_->getData().op.word, NUM_PRINT_FORMAT, &number2); \
+            assert(err);                                                               \
+                                                                                       \
+            Node<CalcNodeData>* newnode = new Node<CalcNodeData>;                      \
+            number1 = number1 operation number2;                                       \
+                                                                                       \
+            char* num_str = new char [MAX_STR_LEN] {};                                 \
+            sprintf(num_str, "%.0lf", number1);                                        \
+            newnode->setData({ {0, num_str}, NODE_NUMBER });                           \
+            OPTIMIZE_ACTION(newnode);                                                  \
+        } //
+
+//------------------------------------------------------------------------------
+
+bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
+{
+    assert(node_cur != nullptr);
+
+    int err = 0;
+
+    switch (node_cur->getData().node_type)
+    {
+    case NODE_FUNCTION:
+
+        return Optimize(tree, node_cur->right_);
+        break;
+
+    case NODE_OPERATOR:
+
+        switch (node_cur->getData().op.code)
+        {
+        case OP_ADD:
+        case OP_SUB:
+
+            if (node_cur->left_ == nullptr)
+            {
+                if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+                {
+                    OPTIMIZE_ACTION(node_cur->right_);
+                }
+                else return Optimize(tree, node_cur->right_);
+            }
+            else
+            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->right_);
+            }
+            else
+            if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->left_);
+            }
+            else
+            if ( (node_cur->left_ ->getData().node_type == NODE_NUMBER) &&
+                 (node_cur->right_->getData().node_type == NODE_NUMBER)   )
+            {
+                CALCULATE_ACTION(node_cur, +);
+            }
+            else
+            {
+                if (Optimize(tree, node_cur->left_)) return true;
+
+                return Optimize(tree, node_cur->right_);
+            }
+            break;
+
+        case OP_MUL:
+
+            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->left_);
+            }
+            else
+            if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->right_);
+            }
+            else
+            if (strcmp(node_cur->left_->getData().op.word, "1") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->right_);
+            }
+            else
+            if (strcmp(node_cur->right_->getData().op.word, "1") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->left_);
+            }
+            else
+            if ( (node_cur->left_ ->getData().node_type == NODE_NUMBER) &&
+                 (node_cur->right_->getData().node_type == NODE_NUMBER)   )
+            {
+                CALCULATE_ACTION(node_cur, *);
+            }
+            else
+            {
+                if (Optimize(tree, node_cur->left_)) return true;
+
+                return Optimize(tree, node_cur->right_);
+            }
+            break;
+
+        case OP_DIV:
+
+            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->left_);
+            }
+            else
+            if (strcmp(node_cur->right_->getData().op.word, "1") == 0)
+            {
+                OPTIMIZE_ACTION(node_cur->left_);
+            }
+            else
+            if ( (strcmp(node_cur->left_->getData().op.word, node_cur->right_->getData().op.word) == 0) &&
+                 ((node_cur->left_->getData().node_type == NODE_VARIABLE) || (node_cur->left_->getData().node_type == NODE_NUMBER)) )
+            {
+                Node<CalcNodeData>* newnode = new Node<CalcNodeData>;
+                newnode->setData({ {0, "1"}, NODE_NUMBER });
+
+                OPTIMIZE_ACTION(newnode);
+            }
+            else
+            {
+                if (Optimize(tree, node_cur->left_)) return true;
+
+                return Optimize(tree, node_cur->right_);
+            }
+            break;
+        }
+        break;
+
+    case NODE_VARIABLE:
+        break;
+    
+    case NODE_NUMBER:
+        break;
+
+    default: assert(0);
+    }
+
+    return false;
 }
 
 //------------------------------------------------------------------------------
