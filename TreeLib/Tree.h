@@ -6,17 +6,21 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 #ifndef TREE_H_INCLUDED
 #define TREE_H_INCLUDED
 
 #define _CRT_SECURE_NO_WARNINGS
-//#define NDEBUG
+
 
 #include "../StringLib/StringLib.h"
+
+#define NO_HASH
 #include "../StackLib/Stack.h"
+#undef NO_HASH
+
 #include "TreeConfig.h"
 #include <type_traits>
 #include <assert.h>
@@ -28,18 +32,27 @@
 #include <new>
 
 
-#define TREE_CHECK if (Check ())                        \
-                   {                                    \
-                     Dump(DUMP_NAME);                   \
-                     TREE_ASSERTOK(errCode_, errCode_); \
+#define TREE_CHECK if (Check ())                            \
+                   {                                        \
+                     Dump(DUMP_NAME);                       \
+                     TREE_ASSERTOK(errCode_, errCode_, -1); \
                    } //
 
 
-#define TREE_ASSERTOK(cond, err) if (cond)                                                            \
-                                 {                                                                    \
-                                   PrintError(TREE_LOGNAME , __FILE__, __LINE__, __FUNC_NAME__, err); \
-                                   exit(err);                                                         \
-                                 } //
+#define TREE_ASSERTOK(cond, err, line) if (cond)                                                                  \
+                                       {                                                                          \
+                                         PrintError(TREE_LOGNAME , __FILE__, __LINE__, __FUNC_NAME__, err, line); \
+                                         exit(err);                                                               \
+                                       } //
+
+#define CHECK_BRACKET(lines_arr, line, bracket)          \
+        (                                                \
+          (lines_arr[line].str[0] != bracket) ||         \
+          (                                              \
+              (not isspace(base.lines_[line].str[1])) && \
+              (base.lines_[line].str[1] != '\0')         \
+          )                                              \
+        ) //
 
 static int tree_id = 0;
 
@@ -52,8 +65,16 @@ static int tree_id = 0;
 #define newTree_base(NAME, base, STK_TYPE) \
         Tree<STK_TYPE> NAME ((char*)#NAME, base);
 
+
 template <typename TYPE>
 class Tree;
+
+template<typename TYPE> const char* const PRINT_TYPE<Tree<TYPE>> = "Tree";
+template<typename TYPE> const Tree<TYPE>  POISON    <Tree<TYPE>> = {};
+
+template<typename TYPE> bool isPOISON  (Tree<TYPE> tree);
+template<typename TYPE> void TypePrint (FILE* fp, const Tree<TYPE>& tree);
+
 
 template <typename TYPE>
 struct Node
@@ -184,7 +205,7 @@ class Tree
 {
 public:
 
-    const char* name_ = nullptr;
+    char* name_ = nullptr;
     Node<TYPE>* root_ = nullptr;
 
     int id_ = 0;
@@ -290,11 +311,11 @@ public:
  *  @param   file        Name of the file from which this function was called
  *  @param   line        Line of the code from which this function was called
  *  @param   function    Name of the function from which this function was called
- *
- *  @return  error code
+ *  @param   err         Error code
+ *  @param   errline     Number of base line with error
  */
 
-    void PrintError (const char* logname, const char* file, int line, const char* function, int err);
+    void PrintError (const char* logname, const char* file, int line, const char* function, int err, int errline);
 
 //------------------------------------------------------------------------------
 /*! @brief   Prints a section of base text with an error to the console and to the log file.
@@ -304,7 +325,7 @@ public:
  *  @param   logname     Name of the log file
  */
 
-    void PrintCode (Text& base, size_t line, const char* logname);
+    void PrintBase (Text& base, size_t line, const char* logname);
 
 //------------------------------------------------------------------------------
 };

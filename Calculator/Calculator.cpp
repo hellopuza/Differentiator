@@ -5,7 +5,7 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 #include "Calculator.h"
@@ -14,24 +14,28 @@
 
 Calculator::Calculator () :
     filename_     (nullptr),
-    tree_         ((char*)"expression"),
+    trees_        ((char*)"trees of expression"),
     variables_    ((char*)"variables"),
     state_        (CALC_OK)
 {
-    variables_.Push({ PI, "pi" });
-    variables_.Push({ E,  "e" });
+    Tree<CalcNodeData> tree((char*)"expression");
+    trees_.Push(tree);
+
+    ADD_VAR(variables_);
 }
 
 //------------------------------------------------------------------------------
 
 Calculator::Calculator (char* filename) :
     filename_     (filename),
-    tree_         (GetTrueFileName(filename)),
+    trees_        ((char*)"trees of expression"),
     variables_    ((char*)"variables"),
     state_        (CALC_OK)
 {
-    variables_.Push({ PI, "pi" });
-    variables_.Push({ E,  "e" });
+    Tree<CalcNodeData> tree(GetTrueFileName(filename));
+    trees_.Push(tree);
+
+    ADD_VAR(variables_);
 }
 
 //------------------------------------------------------------------------------
@@ -62,21 +66,20 @@ int Calculator::Run ()
             char* expr = ScanExpr();
             Expression expression = { expr, expr };
 
-            int err = Expr2Tree(expression, tree_);
+            int err = Expr2Tree(expression, trees_[0]);
             delete [] expr;
             if (!err)
             {
-                tree_.Dump();
+                trees_[0].Dump();
 
-                Calculate(tree_.root_);
+                Calculate(trees_[0].root_);
                 Write();
             }
 
-            tree_.Clean();
+            trees_.Clean();
             variables_.Clean();
 
-            variables_.Push({ PI, "pi" });
-            variables_.Push({ E,  "e" });
+            ADD_VAR(variables_);
 
             printf("Continue [Y/n]? ");
             running = scanAns();
@@ -88,13 +91,13 @@ int Calculator::Run ()
         char* expr = text.text_;
         Expression expression = { expr, expr };
 
-        int err = Expr2Tree(expression, tree_);
+        int err = Expr2Tree(expression, trees_[0]);
         delete [] expr;
         if (err) return err;
 
-        tree_.Dump();
+        trees_[0].Dump();
 
-        Calculate(tree_.root_);
+        Calculate(trees_[0].root_);
         Write();
     }
     
@@ -119,39 +122,44 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
     switch (node_cur->getData().node_type)
     {
     case NODE_FUNCTION:
-
+    {
         assert((node_cur->right_ != nullptr) && (node_cur->left_ == nullptr));
         Calculate(node_cur->right_);
         assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
-        err = sscanf(node_cur->right_->getData().op.word, NUM_PRINT_FORMAT, &number);
-        assert(err);
+        number = Str2Num(node_cur->right_->getData().op.word);
+
+        using namespace std;
+        #define ONE static_cast<NUM_TYPE>(1)
+        #define TWO static_cast<NUM_TYPE>(2)
 
         switch (node_cur->getData().op.code)
         {
-        case OP_ARCCOS:     number = acos(number);        break;
-        case OP_ARCCOSH:    number = acosh(number);       break;
-        case OP_ARCCOT:     number = PI/2 - atan(number); break;
-        case OP_ARCCOTH:    number = atanh(1 / number);   break;
-        case OP_ARCSIN:     number = asin(number);        break;
-        case OP_ARCSINH:    number = asinh(number);       break;
-        case OP_ARCTAN:     number = atan(number);        break;
-        case OP_ARCTANH:    number = atanh(number);       break;
-        case OP_CBRT:       number = cbrt(number);        break;
-        case OP_COS:        number = cos(number);         break;
-        case OP_COSH:       number = cosh(number);        break;
-        case OP_COT:        number = 1 / tan(number);     break;
-        case OP_COTH:       number = 1 / tanh(number);    break;
-        case OP_EXP:        number = exp(number);         break;
-        case OP_LG:         number = log10(number);       break;
-        case OP_LN:         number = log(number);         break;
-        case OP_SIN:        number = sin(number);         break;
-        case OP_SINH:       number = sinh(number);        break;
-        case OP_SQRT:       number = sqrt(number);        break;
-        case OP_TAN:        number = tan(number);         break;
-        case OP_TANH:       number = tanh(number);        break;
+        case OP_ARCCOS:     number = acos(number);          break;
+        case OP_ARCCOSH:    number = acosh(number);         break;
+        case OP_ARCCOT:     number = PI/TWO - atan(number); break;
+        case OP_ARCCOTH:    number = atanh(ONE / number);   break;
+        case OP_ARCSIN:     number = asin(number);          break;
+        case OP_ARCSINH:    number = asinh(number);         break;
+        case OP_ARCTAN:     number = atan(number);          break;
+        case OP_ARCTANH:    number = atanh(number);         break;
+        case OP_COS:        number = cos(number);           break;
+        case OP_COSH:       number = cosh(number);          break;
+        case OP_COT:        number = ONE / tan(number);     break;
+        case OP_COTH:       number = ONE / tanh(number);    break;
+        case OP_EXP:        number = exp(number);           break;
+        case OP_LG:         number = log10(number);         break;
+        case OP_LN:         number = log(number);           break;
+        case OP_SIN:        number = sin(number);           break;
+        case OP_SINH:       number = sinh(number);          break;
+        case OP_SQRT:       number = sqrt(number);          break;
+        case OP_TAN:        number = tan(number);           break;
+        case OP_TANH:       number = tanh(number);          break;
         default: assert(0);
         }
+
+        #undef ONE
+        #undef TWO
 
         node_cur->right_->~Node();
         delete node_cur->right_;
@@ -161,24 +169,22 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
         node_cur->setData({ {0, num_str}, NODE_NUMBER });
         break;
-
+    }
     case NODE_OPERATOR:
-
+    {
         if (node_cur->left_ != nullptr)
         {
             Calculate(node_cur->left_);
             assert(node_cur->left_->getData().node_type == NODE_NUMBER);
 
-            err = sscanf(node_cur->left_->getData().op.word, NUM_PRINT_FORMAT, &left_num);
-            assert(err);
+            left_num = Str2Num(node_cur->left_->getData().op.word);
         }
         else left_num = 0;
 
         Calculate(node_cur->right_);
         assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
-        err = sscanf(node_cur->right_->getData().op.word, NUM_PRINT_FORMAT, &right_num);
-        assert(err);
+        right_num = Str2Num(node_cur->right_->getData().op.word);
 
         switch (node_cur->getData().op.code)
         {
@@ -205,9 +211,9 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
         node_cur->setData({ {0, num_str}, NODE_NUMBER });
         break;
-
+    }
     case NODE_VARIABLE:
-
+    {
         assert((node_cur->right_ == nullptr) && (node_cur->left_ == nullptr));
 
         index = -1;
@@ -220,9 +226,11 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         
         if (index == -1)
         {
-            printf("Enter value of variable %s: ", node_cur->getData().op.word);
-            number = scanNum();
-            variables_.Push({ number, node_cur->getData().op.word });
+            variables_.Push({ 0, node_cur->getData().op.word });
+            size_t size = variables_.getSize();
+
+            number = scanVar(*this, node_cur->getData().op.word);
+            variables_[size - 1] = { number, node_cur->getData().op.word };
         }
         else number = variables_[index].value;
 
@@ -230,7 +238,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
         node_cur->setData({ {0, num_str}, NODE_NUMBER });
         break;
-
+    }
     case NODE_NUMBER:
         break;
 
@@ -246,14 +254,14 @@ void Calculator::Write ()
 {
     if (filename_ == nullptr)
     {
-        printf("result: %s\n", tree_.root_->getData().op.word);
+        printf("result: %s\n", trees_[0].root_->getData().op.word);
     }
     else
     {
         FILE* output = fopen(filename_, "w");
         assert(output != nullptr);
 
-        fprintf(output, "%s", tree_.root_->getData().op.word);
+        fprintf(output, "%s", trees_[0].root_->getData().op.word);
         fclose(output);
     }
 }
@@ -318,10 +326,10 @@ bool isPOISON (CalcNodeData value)
 
 //------------------------------------------------------------------------------
 
-bool isPOISON (Variable value)
+bool isPOISON (Variable var)
 {
-    return ( (value.value == 0)      &&
-             (value.name  == nullptr)  );
+    return ( (var.value == static_cast<NUM_TYPE>(0)) &&
+             (var.name  == nullptr) );
 }
 
 //------------------------------------------------------------------------------
@@ -345,23 +353,72 @@ bool scanAns ()
 
 //------------------------------------------------------------------------------
 
-NUM_TYPE scanNum ()
+NUM_TYPE scanVar (Calculator& calc, char* varname)
 {
-    NUM_TYPE num = 0;
-    char str[MAX_STR_LEN] = "";
-    char* endstr = (char*)"";
+    printf("Enter value of variable %s: ", varname);
 
-    char* err = fgets(str, MAX_STR_LEN - 2, stdin);
+    char* expr = ScanExpr();
+    Expression expression = { expr, expr };
+
+    Tree<CalcNodeData> vartree(varname);
+    while (Expr2Tree(expression, vartree))
+    {
+        delete [] expr;
+        printf("Try again: ");
+        expr = ScanExpr();
+        Expression expression = { expr, expr };
+    }
+    delete [] expr;
+
+    calc.trees_.Push(vartree);
+    calc.Calculate(calc.trees_[calc.trees_.getSize() - 1].root_);
+
+    return Str2Num(calc.trees_[calc.trees_.getSize() - 1].root_->getData().op.word);
+}
+
+//------------------------------------------------------------------------------
+
+NUM_TYPE Str2Num (char* str)
+{
+    char* endstr = nullptr;
+    NUM_TYPE number = 0;
+    double num = 0;
+    char sign = 0;
     num = strtod(str, &endstr);
 
-    while ((endstr[0] != '\n') || !err)
+    if ((str == endstr) && (*str == 'i'))
+	return I;
+
+    if (*endstr == 'i')
+        return num * I;
+    else
+        number += num;
+    
+    if (*endstr == '+')
     {
-        printf("Try again: ");
-        err = fgets(str, MAX_STR_LEN, stdin);
-        num = strtod(str, &endstr);
+        sign = 1;
+        ++endstr;
+    }
+    else if (*endstr == '-')
+    {
+        sign = -1;
+        ++endstr;
+    }
+    else if (*endstr == '\0')
+    {
+        return number;
     }
 
-    return num;
+    str = endstr;
+    endstr = nullptr;
+    num = strtod(str, &endstr);
+
+    if ((str == endstr) && (*str == 'i'))
+	num = 1;
+
+    number += num * sign * I;
+
+    return number;
 }
 
 //------------------------------------------------------------------------------
@@ -671,8 +728,9 @@ Node<CalcNodeData>* pass_Number (Expression& expr)
     char* begin = expr.symb_cur;
 
     value = strtod(expr.symb_cur, &expr.symb_cur);
+    CHECK_SYNTAX((expr.symb_cur == begin), CALC_SYNTAX_NUMBER_ERROR, expr, 1);
 
-    CHECK_SYNTAX((expr.symb_cur == begin), CALC_SYNTAX_NUMER_ERROR, expr, 1);
+    if (*expr.symb_cur == 'i') ++expr.symb_cur;
 
     char* number = new char [MAX_STR_LEN] {};
     memcpy(number, begin, expr.symb_cur - begin);
@@ -698,7 +756,7 @@ bool needBrackets (Node<CalcNodeData>* node, Node<CalcNodeData>* child)
 
 //------------------------------------------------------------------------------
 
-char findFunc (const char* word)
+char findFunc (char* word)
 {
     assert(word != nullptr);
 

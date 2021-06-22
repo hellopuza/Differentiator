@@ -6,14 +6,13 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 #ifndef CALCULATOR_H_INCLUDED
 #define CALCULATOR_H_INCLUDED
 
 #define _CRT_SECURE_NO_WARNINGS
-//#define NDEBUG
 
 
 #if defined (__GNUC__) || defined (__clang__) || defined (__clang_major__)
@@ -29,9 +28,27 @@
 
 
 #include "../StringLib/StringLib.h"
-#include "../StackLib/Stack.h"
 #include "../TreeLib/Tree.h"
 #include "Operations.h"
+#include <complex>
+#include <math.h>
+
+
+#define NUM_TYPE         std::complex<double>
+#define NUM_PRINT_FORMAT "%lf%+lfi"
+
+const size_t NUM_TYPE_SIZE = sizeof(NUM_TYPE);
+
+const NUM_TYPE PI = {atan(1) * 4, 0};
+const NUM_TYPE E  = {exp(1),      0};
+const NUM_TYPE I  = {0,           1};
+
+#define ADD_VAR(variables)                \
+        {                                 \
+            variables.Push({ PI, "pi" }); \
+            variables.Push({ E,  "e"  }); \
+            variables.Push({ I,  "i"  }); \
+        } //
 
 
 //==============================================================================
@@ -51,7 +68,7 @@ enum CalculatorErrors
     CALC_NULL_INPUT_CALCULATOR_PTR                                         ,
     CALC_SYNTAX_ERROR                                                      ,
     CALC_SYNTAX_NO_CLOSE_BRACKET                                           ,
-    CALC_SYNTAX_NUMER_ERROR                                                ,
+    CALC_SYNTAX_NUMBER_ERROR                                               ,
     CALC_SYNTAX_UNIDENTIFIED_FUNCTION                                      ,
     CALC_TREE_FUNC_WRONG_ARGUMENT                                          ,
     CALC_TREE_NUM_WRONG_ARGUMENT                                           ,
@@ -123,7 +140,7 @@ struct CalcNodeData
     char node_type = 0;
 };
 
-template<> const char*            PRINT_TYPE<CalcNodeData> = "CalcNodeData";
+template<> const char* const      PRINT_TYPE<CalcNodeData> = "CalcNodeData";
 template<> constexpr CalcNodeData POISON    <CalcNodeData> = {};
 
 bool isPOISON  (CalcNodeData value);
@@ -136,7 +153,7 @@ struct Variable
     const char* name = nullptr;
 };
 
-template<> const char*        PRINT_TYPE<Variable> = "Variable";
+template<> const char* const  PRINT_TYPE<Variable> = "Variable";
 template<> constexpr Variable POISON    <Variable> = {};
 
 bool isPOISON  (Variable value);
@@ -150,10 +167,10 @@ private:
     int state_;
     char* filename_;
 
-    Tree<CalcNodeData> tree_;
-    Stack<Variable>    variables_;
-
 public:
+
+    Stack<Tree<CalcNodeData>> trees_;
+    Stack<Variable>           variables_;
 
 //------------------------------------------------------------------------------
 /*! @brief   Calculator default constructor.
@@ -193,12 +210,6 @@ public:
 
     int Run ();
 
-/*------------------------------------------------------------------------------
-                   Private functions                                           *
-*///----------------------------------------------------------------------------
-
-private:
-
 //------------------------------------------------------------------------------
 /*! @brief   Calculating process.
  *
@@ -208,6 +219,12 @@ private:
  */
 
     int Calculate (Node<CalcNodeData>* node_cur);
+
+/*------------------------------------------------------------------------------
+                   Private functions                                           *
+*///----------------------------------------------------------------------------
+
+private:
 
 //------------------------------------------------------------------------------
 /*! @brief   Write calculated result to console or to file.
@@ -240,12 +257,25 @@ void CalcPrintError (const char* logname, const char* file, int line, const char
 bool scanAns ();
 
 //------------------------------------------------------------------------------
-/*! @brief   Get a number from stdin.
+/*! @brief   Get a variable value from stdin.
+ *
+ *  @param   calc        Calculator for counting
+ *  @param   varname     Variable name
  *
  *  @return  number
  */
 
-NUM_TYPE scanNum ();
+NUM_TYPE scanVar (Calculator& calc, char* varname);
+
+//------------------------------------------------------------------------------
+/*! @brief   Convert c string to number.
+ *
+ *  @param   str         C string
+ *
+ *  @return  number
+ */
+
+NUM_TYPE Str2Num (char* str);
 
 //------------------------------------------------------------------------------
 /*! @brief   Get string equation from stdin.
@@ -367,7 +397,7 @@ bool needBrackets (Node<CalcNodeData>* node, Node<CalcNodeData>* child);
  *  @return  function code if found else NOT_OK
  */
 
-char findFunc (const char* word);
+char findFunc (char* word);
 
 //------------------------------------------------------------------------------
 /*! @brief   Optimize expression process.

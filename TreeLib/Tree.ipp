@@ -5,7 +5,7 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 template <typename TYPE>
@@ -49,23 +49,23 @@ Tree<TYPE>::Tree (char* tree_name, char* base_filename) :
     path2badnode_ ((char*)"path to problem node"),
     errCode_      (TREE_OK)
 {
-    TREE_ASSERTOK((tree_name == nullptr), TREE_WRONG_INPUT_TREE_NAME);
+    TREE_ASSERTOK((tree_name == nullptr), TREE_WRONG_INPUT_TREE_NAME, -1);
 
     root_ = new Node<TYPE>;
 
     Text base(base_filename);
 
-    TREE_ASSERTOK((base.num_ < 2), TREE_WRONG_SYNTAX_INPUT_BASE);
-    TREE_ASSERTOK((strcmp(base.lines_[0].str,             OPEN_BRACKET ) != 0), TREE_WRONG_SYNTAX_INPUT_BASE);
-    TREE_ASSERTOK((strcmp(base.lines_[base.num_ - 1].str, CLOSE_BRACKET) != 0), TREE_WRONG_SYNTAX_INPUT_BASE);
-
+    TREE_ASSERTOK((base.num_ < 2), TREE_WRONG_SYNTAX_INPUT_BASE, -1);
+    TREE_ASSERTOK(CHECK_BRACKET(base.lines_, 0,             OPEN_BRACKET),  TREE_WRONG_SYNTAX_INPUT_BASE, 0);
+    TREE_ASSERTOK(CHECK_BRACKET(base.lines_, base.num_ - 2, CLOSE_BRACKET), TREE_WRONG_SYNTAX_INPUT_BASE, base.num_ - 2);
+    
     size_t line_cur = 1;
-    if (strcmp(base.lines_[line_cur].str, CLOSE_BRACKET) != 0)
+    if (base.lines_[line_cur].str[0] != CLOSE_BRACKET)
     {
-        if (root_->AddFromBase(base, line_cur) == TREE_WRONG_SYNTAX_INPUT_BASE)
+        if (root_->AddFromBase(base, line_cur) != 0)
         {
-            PrintError(TREE_LOGNAME , __FILE__, __LINE__, __FUNC_NAME__, TREE_WRONG_SYNTAX_INPUT_BASE);
-            PrintCode(base, line_cur, TREE_LOGNAME);
+            PrintError(TREE_LOGNAME, __FILE__, __LINE__, __FUNC_NAME__, TREE_WRONG_SYNTAX_INPUT_BASE, line_cur);
+            PrintBase(base, line_cur, TREE_LOGNAME);
             exit(TREE_WRONG_SYNTAX_INPUT_BASE);
         };
     }
@@ -88,6 +88,8 @@ Tree<TYPE>& Tree<TYPE>::operator = (const Tree& obj)
 {
     TREE_CHECK;
 
+    name_ = obj.name_;
+
     if (obj.root_ != nullptr)
     {
         if (root_ == nullptr) root_ = new Node<TYPE>;
@@ -109,7 +111,6 @@ Tree<TYPE>::~Tree ()
     {
         if (root_ != nullptr)
         {
-            root_->~Node();
             delete root_;
             root_ = nullptr;
         }
@@ -118,7 +119,7 @@ Tree<TYPE>::~Tree ()
     }
     else
     {
-        TREE_ASSERTOK(TREE_DESTRUCTOR_REPEATED, TREE_DESTRUCTOR_REPEATED);
+        TREE_ASSERTOK(TREE_DESTRUCTOR_REPEATED, TREE_DESTRUCTOR_REPEATED, -1);
     }
 }
 
@@ -129,7 +130,6 @@ void Tree<TYPE>::Clean ()
 {
     if (root_ != nullptr)
     {
-        root_->~Node();
         delete root_;
         root_ = nullptr;
     }
@@ -161,29 +161,29 @@ Node<TYPE>& Node<TYPE>::operator = (const Node& obj)
 
     if (obj.right_ != nullptr)
     {
-        if (right_ != nullptr) right_->~Node();
+        if (right_ != nullptr) delete right_;
         right_ = new Node<TYPE>;
 
         *right_ = *obj.right_;
         right_->prev_ = this;
     }
-    else
+    else if (right_ != nullptr)
     {
-        if (right_ != nullptr) right_->~Node();
+        delete right_;
         right_ = nullptr;
     }
     
     if (obj.left_ != nullptr)
     {
-        if (left_ != nullptr) left_->~Node();
+        if (left_ != nullptr) delete left_;
         left_ = new Node<TYPE>;
 
         *left_ = *obj.left_;
         left_->prev_ = this;
     }
-    else
+    else if (left_ != nullptr)
     {
-        if (left_ != nullptr) left_->~Node();
+        delete left_;
         left_ = nullptr;
     }
 
@@ -200,14 +200,12 @@ Node<TYPE>::~Node ()
 {
     if (right_ != nullptr)
     {
-        right_->~Node();
         delete right_;
         right_ = nullptr;
     }
 
     if (left_ != nullptr)
     {
-        left_->~Node();
         delete left_;
         left_  = nullptr;
     }
@@ -230,7 +228,11 @@ int Node<TYPE>::AddFromBase (const Text& base, size_t& line_cur)
 {
     assert(line_cur < base.num_);
 
-    if (strcmp(base.lines_[line_cur].str, CLOSE_BRACKET) == 0) return 0;
+    if (base.lines_[line_cur].str[0] == CLOSE_BRACKET)
+    {
+        if (CHECK_BRACKET(base.lines_, line_cur, CLOSE_BRACKET)) return line_cur;
+        else return 0;
+    }
 
     if constexpr (std::is_same<TYPE, char*>::value)
     {
@@ -243,8 +245,10 @@ int Node<TYPE>::AddFromBase (const Text& base, size_t& line_cur)
     else
         sscanf(base.lines_[line_cur++].str, PRINT_FORMAT<TYPE>, &data_);
 
-    if (strcmp(base.lines_[line_cur].str, OPEN_BRACKET) == 0)
+    if (base.lines_[line_cur].str[0] == OPEN_BRACKET)
     {
+        if (CHECK_BRACKET(base.lines_, line_cur, OPEN_BRACKET)) return line_cur;
+
         right_ = new Node<TYPE>;
         right_->prev_ = this;
         right_->depth_ = depth_ + 1;
@@ -253,11 +257,12 @@ int Node<TYPE>::AddFromBase (const Text& base, size_t& line_cur)
         if (err) return err;
         ++line_cur;
     }
-    else if (strcmp(base.lines_[line_cur].str, CLOSE_BRACKET) == 0) return 0;
-    else return TREE_WRONG_SYNTAX_INPUT_BASE;
+    else if (CHECK_BRACKET(base.lines_, line_cur, CLOSE_BRACKET)) return line_cur;
 
-    if (strcmp(base.lines_[line_cur].str, OPEN_BRACKET) == 0)
+    if (base.lines_[line_cur].str[0] == OPEN_BRACKET)
     {
+        if (CHECK_BRACKET(base.lines_, line_cur, OPEN_BRACKET)) return line_cur;
+
         left_ = new Node<TYPE>;
         left_->prev_ = this;
         left_->depth_ = depth_ + 1;
@@ -290,14 +295,36 @@ void Tree<TYPE>::Dump (const char* dumpname)
 
     char command[128] = "";
 
+#if defined(WIN32)
+
     sprintf(command, "win_iconv -f 1251 -t UTF8 \"%s\" > \"new%s\"", dumpname, dumpname);
-    system(command);
+
+#elif defined(__linux__)
+
+    sprintf(command, "iconv -f CP1251 -t UTF8 \"%s\" -o \"new%s\"", dumpname, dumpname);
+
+#else
+#error Program is only supported by linux or windows platforms
+#endif
+
+    int err = system(command);
 
     sprintf(command, "dot -Tpng -o %s new%s", DUMP_PICT_NAME, dumpname);
-    system(command);
+    if (!err) err = system(command);
+
+#if defined(WIN32)
 
     sprintf(command, "del new%s", dumpname);
-    system(command);
+
+#elif defined(__linux__)
+
+    sprintf(command, "rm new%s", dumpname);
+
+#else
+#error Program is only supported by linux or windows platforms
+#endif
+
+    if (!err) err = system(command);
 }
 
 //------------------------------------------------------------------------------
@@ -307,41 +334,41 @@ void Node<TYPE>::Dump (FILE* dump)
 {
     assert(dump != nullptr);
     
-    fprintf(dump, "\t \"prev: 0x%p\\n", prev_);
-    fprintf(dump, " this: 0x%p\\n depth: %u\\n data: [", this, depth_);
+    fprintf(dump, "\t \"prev: " PRINT_PTR "\\n", prev_);
+    fprintf(dump, " this: " PRINT_PTR "\\n depth: %lu\\n data: [", this, depth_);
     TypePrint(dump, data_);
-    fprintf(dump, "]\\n left: 0x%p | right: 0x%p\\n", left_, right_);
+    fprintf(dump, "]\\n left: " PRINT_PTR " | right: " PRINT_PTR "\\n", left_, right_);
     fprintf(dump, "\" [shape = box, style = filled, color = black, fillcolor = lightskyblue]\n");
 
     if (left_ != nullptr)
     {
-        fprintf(dump, "\t \"prev: 0x%p\\n", prev_);
-        fprintf(dump, " this: 0x%p\\n depth: %u\\n data: [", this, depth_);
+        fprintf(dump, "\t \"prev: " PRINT_PTR "\\n", prev_);
+        fprintf(dump, " this: " PRINT_PTR "\\n depth: %lu\\n data: [", this, depth_);
         TypePrint(dump, data_);
-        fprintf(dump, "]\\n left: 0x%p | right: 0x%p\\n", left_, right_);
+        fprintf(dump, "]\\n left: " PRINT_PTR " | right: " PRINT_PTR "\\n", left_, right_);
 
         fprintf(dump, "\" -> \"");
 
-        fprintf(dump, "prev: 0x%p\\n", left_->prev_);
-        fprintf(dump, " this: 0x%p\\n depth: %u\\n data: [", left_, left_->depth_);
+        fprintf(dump, "prev: " PRINT_PTR "\\n", left_->prev_);
+        fprintf(dump, " this: " PRINT_PTR "\\n depth: %lu\\n data: [", left_, left_->depth_);
         TypePrint(dump, left_->data_);
-        fprintf(dump, "]\\n left: 0x%p | right: 0x%p\\n", left_->left_, left_->right_);
+        fprintf(dump, "]\\n left: " PRINT_PTR " | right: " PRINT_PTR "\\n", left_->left_, left_->right_);
         fprintf(dump, "\" [label=\"left\"]\n");
     }
 
     if (right_ != nullptr)
     {
-        fprintf(dump, "\t \"prev: 0x%p\\n", prev_);
-        fprintf(dump, " this: 0x%p\\n depth: %u\\n data: [", this, depth_);
+        fprintf(dump, "\t \"prev: " PRINT_PTR "\\n", prev_);
+        fprintf(dump, " this: " PRINT_PTR "\\n depth: %lu\\n data: [", this, depth_);
         TypePrint(dump, data_);
-        fprintf(dump, "]\\n left: 0x%p | right: 0x%p\\n", left_, right_);
+        fprintf(dump, "]\\n left: " PRINT_PTR " | right: " PRINT_PTR "\\n", left_, right_);
 
         fprintf(dump, "\" -> \"");
 
-        fprintf(dump, "prev: 0x%p\\n", right_->prev_);
-        fprintf(dump, " this: 0x%p\\n depth: %u\\n data: [", right_, right_->depth_);
+        fprintf(dump, "prev: " PRINT_PTR "\\n", right_->prev_);
+        fprintf(dump, " this: " PRINT_PTR "\\n depth: %lu\\n data: [", right_, right_->depth_);
         TypePrint(dump, right_->data_);
-        fprintf(dump, "]\\n left: 0x%p | right: 0x%p\\n", right_->left_, right_->right_);
+        fprintf(dump, "]\\n left: " PRINT_PTR " | right: " PRINT_PTR "\\n", right_->left_, right_->right_);
         fprintf(dump, "\" [label=\"right\"]\n");
     }
 
@@ -358,9 +385,9 @@ void Tree<TYPE>::Write (const char* basename)
     FILE* base = fopen(basename, "w");
     assert(base != nullptr);
 
-    fprintf(base, "[\n");
+    fprintf(base, "%c\n", OPEN_BRACKET);
     if (root_ != nullptr) root_->Write(base);
-    fprintf(base, "]");
+    fprintf(base, "%c", CLOSE_BRACKET);
 
     fclose(base);
 }
@@ -464,7 +491,7 @@ void Node<TYPE>::recountPrev ()
 template <typename TYPE>
 int Tree<TYPE>::findPath (Stack<size_t>& path, TYPE elem)
 {
-    TREE_ASSERTOK((isPOISON(elem)), TREE_INPUT_DATA_POISON);
+    TREE_ASSERTOK((isPOISON(elem)), TREE_INPUT_DATA_POISON, -1);
 
     bool found = root_->findPath(path, elem);
 
@@ -502,6 +529,25 @@ int Node<TYPE>::findPath (Stack<size_t>& path, TYPE elem)
     if (not found) path.Pop();
 
     return found;
+}
+
+//------------------------------------------------------------------------------
+
+template<typename TYPE>
+bool isPOISON (Tree<TYPE> tree)
+{
+    return ( (tree.name_    == 0) &&
+             (tree.root_    == 0) &&
+             (tree.id_      == 0) && 
+             (tree.errCode_ == 0) );
+}
+
+//------------------------------------------------------------------------------
+
+template<typename TYPE>
+void TypePrint (FILE* fp, const Tree<TYPE>& tree)
+{
+    fprintf(fp, "%s", tree.name_);
 }
 
 //------------------------------------------------------------------------------
@@ -575,7 +621,7 @@ int Node<TYPE>::Check (Tree<TYPE>& tree)
 //------------------------------------------------------------------------------
 
 template <typename TYPE>
-void Tree<TYPE>::PrintError (const char* logname, const char* file, int line, const char* function, int err)
+void Tree<TYPE>::PrintError (const char* logname, const char* file, int line, const char* function, int err, int errline)
 {
     assert(function != nullptr);
     assert(logname  != nullptr);
@@ -598,6 +644,7 @@ void Tree<TYPE>::PrintError (const char* logname, const char* file, int line, co
 
     fprintf(log, "ERROR: file %s  line %d  function %s\n\n", file, line, function);
     fprintf(log, "%s\n", tree_errstr[err + 1]);
+    if (errline != -1) fprintf(log, "line %d\n", errline + 1);
 
     if (path2badnode_.getSize() != 0)
     {
@@ -618,6 +665,7 @@ void Tree<TYPE>::PrintError (const char* logname, const char* file, int line, co
 
     printf("ERROR: file %s  line %d  function %s\n", file, line, function);
     printf("%s\n\n", tree_errstr[err + 1]);
+    if (errline != -1) printf("line %d\n", errline + 1);
 
     if (path2badnode_.getSize() != 0)
     {
@@ -637,7 +685,7 @@ void Tree<TYPE>::PrintError (const char* logname, const char* file, int line, co
 //------------------------------------------------------------------------------
 
 template <typename TYPE>
-void Tree<TYPE>::PrintCode (Text& base, size_t line, const char* logname)
+void Tree<TYPE>::PrintBase (Text& base, size_t line, const char* logname)
 {
     assert(logname != nullptr);
 
@@ -656,8 +704,8 @@ void Tree<TYPE>::PrintCode (Text& base, size_t line, const char* logname)
     {
         if ((true_line + i > 0) && (true_line + i <= base.num_))
         {
-            fprintf(log, "%s%5d: %s\n", ((i == 0)? "=>" : "  "), true_line + i, base.lines_[true_line + i - 1].str);
-            printf (     "%s%5d: %s\n", ((i == 0)? "=>" : "  "), true_line + i, base.lines_[true_line + i - 1].str);
+            fprintf(log, "%s%5ld: %s\n", ((i == 0)? "=>" : "  "), true_line + i, base.lines_[true_line + i - 1].str);
+            printf (     "%s%5ld: %s\n", ((i == 0)? "=>" : "  "), true_line + i, base.lines_[true_line + i - 1].str);
         }
     }
 

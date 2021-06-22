@@ -5,24 +5,14 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
-#ifndef COMMANDS_H_INCLUDED
-#define COMMANDS_H_INCLUDED
+#ifndef OPERATIONS_H_INCLUDED
+#define OPERATIONS_H_INCLUDED
 
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
-
-
-#define NUM_TYPE         double
-#define NUM_PRINT_FORMAT "%lf"
-
-const size_t NUM_TYPE_SIZE = sizeof(NUM_TYPE);
-
-const double PI = atan(1) * 4;
-const double E  = exp(1);
 
 /*------------------------------------------------------------------------------
                    Operations codes                                            *
@@ -45,25 +35,24 @@ enum OperationsCodes
     OP_ARCSINH  = 0x0B,
     OP_ARCTAN   = 0x0C,
     OP_ARCTANH  = 0x0D,
-    OP_CBRT     = 0x0E,
-    OP_COS      = 0x0F,
-    OP_COSH     = 0x10,
-    OP_COT      = 0x11,
-    OP_COTH     = 0x12,
-    OP_EXP      = 0x13,
-    OP_LG       = 0x14,
-    OP_LN       = 0x15,
-    OP_SIN      = 0x16,
-    OP_SINH     = 0x17,
-    OP_SQRT     = 0x18,
-    OP_TAN      = 0x19,
-    OP_TANH     = 0x1A,
+    OP_COS      = 0x0E,
+    OP_COSH     = 0x0F,
+    OP_COT      = 0x10,
+    OP_COTH     = 0x11,
+    OP_EXP      = 0x12,
+    OP_LG       = 0x13,
+    OP_LN       = 0x14,
+    OP_SIN      = 0x15,
+    OP_SINH     = 0x16,
+    OP_SQRT     = 0x17,
+    OP_TAN      = 0x18,
+    OP_TANH     = 0x19,
 };
 
 struct operation
 {
     char code = 0;
-    const char* word = 0;
+    char* word = 0;
 };
 
 static operation op_names[] =
@@ -82,7 +71,6 @@ static operation op_names[] =
     { OP_ARCSINH  , "arcsinh" },
     { OP_ARCTAN   , "arctan"  },
     { OP_ARCTANH  , "arctanh" },
-    { OP_CBRT     , "cbrt"    },
     { OP_COS      , "cos"     },
     { OP_COSH     , "cosh"    },
     { OP_COT      , "cot"     },
@@ -114,4 +102,4 @@ inline int CompareOP_Names (const void* p1, const void* p2)
 
 //------------------------------------------------------------------------------
 
-#endif // COMMAND_H_INCLUDED
+#endif // OPERATIONS_H_INCLUDED
