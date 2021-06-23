@@ -536,9 +536,9 @@ int Node<TYPE>::findPath (Stack<size_t>& path, TYPE elem)
 template<typename TYPE>
 bool isPOISON (Tree<TYPE> tree)
 {
-    return ( (tree.name_    == 0) &&
-             (tree.root_    == 0) &&
-             (tree.id_      == 0) && 
+    return ( (tree.name_    == nullptr) &&
+             (tree.root_    == nullptr) &&
+             (tree.id_      == 0)       &&
              (tree.errCode_ == 0) );
 }
 

@@ -35,13 +35,16 @@
 
 
 #define NUM_TYPE         std::complex<double>
-#define NUM_PRINT_FORMAT "%lf%+lfi"
 
 const size_t NUM_TYPE_SIZE = sizeof(NUM_TYPE);
 
 const NUM_TYPE PI = {atan(1) * 4, 0};
 const NUM_TYPE E  = {exp(1),      0};
 const NUM_TYPE I  = {0,           1};
+
+template<> constexpr NUM_TYPE POISON<NUM_TYPE> = {NAN, NAN};
+
+constexpr double NIL = 1e-9;
 
 #define ADD_VAR(variables)                \
         {                                 \
@@ -74,6 +77,7 @@ enum CalculatorErrors
     CALC_TREE_NUM_WRONG_ARGUMENT                                           ,
     CALC_TREE_OPER_WRONG_ARGUMENTS                                         ,
     CALC_TREE_VAR_WRONG_ARGUMENT                                           ,
+    CALC_UNIDENTIFIED_VARIABLE                                             ,
 };
 
 static const char* calc_errstr[] =
@@ -92,6 +96,7 @@ static const char* calc_errstr[] =
     "Number node must not have any children"                               ,
     "Operator node must have two children"                                 ,
     "Variable node must not have any children"                             ,
+    "I do not solve equations"                                             ,
 };
 
 static const char* CALCULATOR_LOGNAME = "calculator.log";
@@ -136,8 +141,10 @@ struct Expression
 
 struct CalcNodeData
 {
-    operation op   = {};
-    char node_type = 0;
+    NUM_TYPE number    = POISON<NUM_TYPE>;
+    char*    word      = nullptr;
+    char     op_code   = 0;
+    char     node_type = 0;
 };
 
 template<> const char* const      PRINT_TYPE<CalcNodeData> = "CalcNodeData";
@@ -149,8 +156,8 @@ void TypePrint (FILE* fp, const CalcNodeData& node_data);
 
 struct Variable
 {
-    NUM_TYPE value = 0;
-    const char* name = nullptr;
+    NUM_TYPE    value = POISON<NUM_TYPE>;
+    const char* name  = nullptr;
 };
 
 template<> const char* const  PRINT_TYPE<Variable> = "Variable";
@@ -268,14 +275,14 @@ bool scanAns ();
 NUM_TYPE scanVar (Calculator& calc, char* varname);
 
 //------------------------------------------------------------------------------
-/*! @brief   Convert c string to number.
+/*! @brief   Convert complex number to c string.
  *
- *  @param   str         C string
+ *  @param   number      Complex number
  *
- *  @return  number
+ *  @return  string
  */
 
-NUM_TYPE Str2Num (char* str);
+char* Num2Str (NUM_TYPE number);
 
 //------------------------------------------------------------------------------
 /*! @brief   Get string equation from stdin.
@@ -419,6 +426,43 @@ void Optimize (Tree<CalcNodeData>& tree);
  */
 
 bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur);
+
+//------------------------------------------------------------------------------
+/*! @brief   Check if value is POISON.
+ *
+ *  @param   value       Value to be checked
+ *
+ *  @return 1 if value is POISON, else 0
+ */
+
+bool isPOISON (NUM_TYPE value);
+
+//------------------------------------------------------------------------------
+/*! @brief   Print the contents of the tree like a graphviz dot file.
+ *
+ *  @param   tree        Tree to visualize
+ */
+
+void printExprGraph (Tree<CalcNodeData> tree);
+
+//------------------------------------------------------------------------------
+/*! @brief   Recursive print the contents of the tree like a graphviz dot file.
+ *
+ *  @param   graph       Dump graphviz dot file
+ *  @param   node_cur    Node to visualize
+ */
+
+void printExprGraphNode (FILE* graph, Node<CalcNodeData>* node_cur);
+
+//------------------------------------------------------------------------------
+/*! @brief   Get data and fillcolor of node for printing the contents of the tree like a graphviz dot file.
+ *
+ *  @param   node_cur    Node to visualize
+ *  @param   data        Pointer to string node data
+ *  @param   node_cur    Pointer to string color name
+ */
+
+void getDataAndColor (Node<CalcNodeData>* node_cur, char** data, char** fillcolor);
 
 //------------------------------------------------------------------------------
 /*! @brief   Prints an expression indicating an error.

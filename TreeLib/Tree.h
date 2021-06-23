@@ -209,7 +209,7 @@ public:
     Node<TYPE>* root_ = nullptr;
 
     int id_ = 0;
-    int errCode_;
+    int errCode_ = 0;
 
     Stack<TYPE> path2badnode_;
 

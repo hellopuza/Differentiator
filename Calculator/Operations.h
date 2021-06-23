@@ -51,38 +51,38 @@ enum OperationsCodes
 
 struct operation
 {
-    char code = 0;
+    char code  = 0;
     char* word = 0;
 };
 
 static operation op_names[] =
 {
-    { OP_ERR      , "#ERR#"   },
-    { OP_ADD      , "+"       },
-    { OP_SUB      , "-"       },
-    { OP_MUL      , "*"       },
-    { OP_DIV      , "/"       },
-    { OP_POW      , "^"       },
-    { OP_ARCCOS   , "arccos"  },
-    { OP_ARCCOSH  , "arccosh" },
-    { OP_ARCCOT   , "arccot"  },
-    { OP_ARCCOTH  , "arccoth" },
-    { OP_ARCSIN   , "arcsin"  },
-    { OP_ARCSINH  , "arcsinh" },
-    { OP_ARCTAN   , "arctan"  },
-    { OP_ARCTANH  , "arctanh" },
-    { OP_COS      , "cos"     },
-    { OP_COSH     , "cosh"    },
-    { OP_COT      , "cot"     },
-    { OP_COTH     , "coth"    },
-    { OP_EXP      , "exp"     },
-    { OP_LG       , "lg"      },
-    { OP_LN       , "ln"      },
-    { OP_SIN      , "sin"     },
-    { OP_SINH     , "sinh"    },
-    { OP_SQRT     , "sqrt"    },
-    { OP_TAN      , "tan"     },
-    { OP_TANH     , "tanh"    },
+    { OP_ERR      , (char*) "#ERR#"   },
+    { OP_ADD      , (char*) "+"       },
+    { OP_SUB      , (char*) "-"       },
+    { OP_MUL      , (char*) "*"       },
+    { OP_DIV      , (char*) "/"       },
+    { OP_POW      , (char*) "^"       },
+    { OP_ARCCOS   , (char*) "arccos"  },
+    { OP_ARCCOSH  , (char*) "arccosh" },
+    { OP_ARCCOT   , (char*) "arccot"  },
+    { OP_ARCCOTH  , (char*) "arccoth" },
+    { OP_ARCSIN   , (char*) "arcsin"  },
+    { OP_ARCSINH  , (char*) "arcsinh" },
+    { OP_ARCTAN   , (char*) "arctan"  },
+    { OP_ARCTANH  , (char*) "arctanh" },
+    { OP_COS      , (char*) "cos"     },
+    { OP_COSH     , (char*) "cosh"    },
+    { OP_COT      , (char*) "cot"     },
+    { OP_COTH     , (char*) "coth"    },
+    { OP_EXP      , (char*) "exp"     },
+    { OP_LG       , (char*) "lg"      },
+    { OP_LN       , (char*) "ln"      },
+    { OP_SIN      , (char*) "sin"     },
+    { OP_SINH     , (char*) "sinh"    },
+    { OP_SQRT     , (char*) "sqrt"    },
+    { OP_TAN      , (char*) "tan"     },
+    { OP_TANH     , (char*) "tanh"    },
 };
 
 const int OP_NUM = sizeof(op_names) / sizeof(op_names[0]);

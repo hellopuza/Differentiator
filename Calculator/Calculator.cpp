@@ -70,14 +70,21 @@ int Calculator::Run ()
             delete [] expr;
             if (!err)
             {
-                trees_[0].Dump();
+                printExprGraph(trees_[0]);
 
-                Calculate(trees_[0].root_);
-                Write();
+                err = Calculate(trees_[0].root_);
+                if (err)
+                    printf("%s\n", calc_errstr[err + 1]);
+                else
+                    Write();
             }
+            char* tree_name = trees_[0].name_;
 
             trees_.Clean();
             variables_.Clean();
+
+            Tree<CalcNodeData> tree(GetTrueFileName(tree_name));
+            trees_.Push(tree);
 
             ADD_VAR(variables_);
 
@@ -95,10 +102,13 @@ int Calculator::Run ()
         delete [] expr;
         if (err) return err;
 
-        trees_[0].Dump();
+        printExprGraph(trees_[0]);
 
-        Calculate(trees_[0].root_);
-        Write();
+        err = Calculate(trees_[0].root_);
+        if (err)
+            printf("%s\n", calc_errstr[err + 1]);
+        else
+            Write();
     }
     
     return CALC_OK;
@@ -117,23 +127,21 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
     NUM_TYPE right_num = 0;
     NUM_TYPE left_num  = 0;
 
-    char* num_str = new char [MAX_STR_LEN] {};
-
     switch (node_cur->getData().node_type)
     {
     case NODE_FUNCTION:
     {
         assert((node_cur->right_ != nullptr) && (node_cur->left_ == nullptr));
-        Calculate(node_cur->right_);
+        int err = Calculate(node_cur->right_);
+        if (err) return err;
         assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
-        number = Str2Num(node_cur->right_->getData().op.word);
+        number = node_cur->right_->getData().number;
 
-        using namespace std;
         #define ONE static_cast<NUM_TYPE>(1)
         #define TWO static_cast<NUM_TYPE>(2)
 
-        switch (node_cur->getData().op.code)
+        switch (node_cur->getData().op_code)
         {
         case OP_ARCCOS:     number = acos(number);          break;
         case OP_ARCCOSH:    number = acosh(number);         break;
@@ -165,28 +173,28 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         delete node_cur->right_;
         node_cur->right_ = nullptr;
 
-        sprintf(num_str, NUM_PRINT_FORMAT, number);
-
-        node_cur->setData({ {0, num_str}, NODE_NUMBER });
+        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
         break;
     }
     case NODE_OPERATOR:
     {
         if (node_cur->left_ != nullptr)
         {
-            Calculate(node_cur->left_);
+            int err = Calculate(node_cur->left_);
+            if (err) return err;
             assert(node_cur->left_->getData().node_type == NODE_NUMBER);
 
-            left_num = Str2Num(node_cur->left_->getData().op.word);
+            left_num = node_cur->left_->getData().number;
         }
         else left_num = 0;
 
-        Calculate(node_cur->right_);
+        int err = Calculate(node_cur->right_);
+        if (err) return err;
         assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
-        right_num = Str2Num(node_cur->right_->getData().op.word);
+        right_num = node_cur->right_->getData().number;
 
-        switch (node_cur->getData().op.code)
+        switch (node_cur->getData().op_code)
         {
         case OP_MUL:  number = left_num * right_num;     break;
         case OP_ADD:  number = left_num + right_num;     break;
@@ -207,9 +215,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
             node_cur->left_ = nullptr;
         }
 
-        sprintf(num_str, NUM_PRINT_FORMAT, number);
-
-        node_cur->setData({ {0, num_str}, NODE_NUMBER });
+        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
         break;
     }
     case NODE_VARIABLE:
@@ -218,7 +224,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
         index = -1;
         for (int i = 0; i < variables_.getSize(); ++i)
-            if (strcmp(variables_[i].name, node_cur->getData().op.word) == 0)
+            if (strcmp(variables_[i].name, node_cur->getData().word) == 0)
             {
                 index = i;
                 break;
@@ -226,17 +232,20 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         
         if (index == -1)
         {
-            variables_.Push({ 0, node_cur->getData().op.word });
+            variables_.Push({ POISON<NUM_TYPE>, node_cur->getData().word });
             size_t size = variables_.getSize();
 
-            number = scanVar(*this, node_cur->getData().op.word);
-            variables_[size - 1] = { number, node_cur->getData().op.word };
+            number = scanVar(*this, node_cur->getData().word);
+            variables_[size - 1] = { number, node_cur->getData().word };
         }
         else number = variables_[index].value;
+        
+        if (isPOISON(number))
+        {
+            return CALC_UNIDENTIFIED_VARIABLE;
+        }
 
-        sprintf(num_str, NUM_PRINT_FORMAT, number);
-
-        node_cur->setData({ {0, num_str}, NODE_NUMBER });
+        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
         break;
     }
     case NODE_NUMBER:
@@ -252,18 +261,22 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
 void Calculator::Write ()
 {
+    assert(trees_[0].root_->getData().node_type == NODE_NUMBER);
+
+    char* strnum = Num2Str(trees_[0].root_->getData().number);
     if (filename_ == nullptr)
     {
-        printf("result: %s\n", trees_[0].root_->getData().op.word);
+        printf("result: %s\n", strnum);
     }
     else
     {
         FILE* output = fopen(filename_, "w");
         assert(output != nullptr);
 
-        fprintf(output, "%s", trees_[0].root_->getData().op.word);
+        fprintf(output, "%s", strnum);
         fclose(output);
     }
+    delete [] strnum;
 }
 
 //------------------------------------------------------------------------------
@@ -296,39 +309,64 @@ void CalcPrintError (const char* logname, const char* file, int line, const char
 
 void TypePrint (FILE* fp, const CalcNodeData& node_data)
 {
+    assert (fp != nullptr);
+
     switch (node_data.node_type)
     {
-        case NODE_FUNCTION: fprintf(fp, "func: "); break;
-        case NODE_OPERATOR: fprintf(fp, "oper: "); break;
-        case NODE_VARIABLE: fprintf(fp, "var: " ); break;
-        case NODE_NUMBER:   fprintf(fp, "num: " ); break;
-        default:            fprintf(fp, "err: " ); break;
+    case NODE_FUNCTION:
+    {
+        fprintf(fp, "func: %s", node_data.word);
+        break;
     }
-
-    fprintf(fp, "%s", node_data.op.word);
+    case NODE_OPERATOR:
+    {
+        fprintf(fp, "oper: %s", node_data.word);
+        break;
+    }
+    case NODE_VARIABLE:
+    {
+        fprintf(fp, "var: %s", node_data.word);
+        break;
+    }
+    case NODE_NUMBER:
+    {
+        char* strnum = Num2Str(node_data.number);
+        fprintf(fp, "num: %s", strnum);
+        delete [] strnum;
+        break;
+    }
+    default: fprintf(fp, "err: %s", node_data.word); break;
+    }
 }
 
 //------------------------------------------------------------------------------
 
 void TypePrint (FILE* fp, const Variable& var)
 {
-    fprintf(fp, "%s: " NUM_PRINT_FORMAT, var.name, var.value);
+    assert (fp != nullptr);
+
+    char* strnum = Num2Str(var.value);
+    fprintf(fp, "%s: %s", var.name, strnum);
+    delete [] strnum;
 }
 
 //------------------------------------------------------------------------------
 
 bool isPOISON (CalcNodeData value)
 {
-    return ( (value.op.word   == 0) &&
-             (value.op.code   == 0) &&
-             (value.node_type == 0)   );
+    return ( (isPOISON(real(value.number))) &&
+             (isPOISON(imag(value.number))) &&
+             (value.word      == nullptr)   &&
+             (value.op_code   == 0)         &&
+             (value.node_type == 0) );
 }
 
 //------------------------------------------------------------------------------
 
 bool isPOISON (Variable var)
 {
-    return ( (var.value == static_cast<NUM_TYPE>(0)) &&
+    return ( (isPOISON(real(var.value))) &&
+             (isPOISON(imag(var.value))) &&
              (var.name  == nullptr) );
 }
 
@@ -371,54 +409,81 @@ NUM_TYPE scanVar (Calculator& calc, char* varname)
     delete [] expr;
 
     calc.trees_.Push(vartree);
-    calc.Calculate(calc.trees_[calc.trees_.getSize() - 1].root_);
+    int err = calc.Calculate(calc.trees_[calc.trees_.getSize() - 1].root_);
+    if (err == CALC_UNIDENTIFIED_VARIABLE)
+        return POISON<NUM_TYPE>;
 
-    return Str2Num(calc.trees_[calc.trees_.getSize() - 1].root_->getData().op.word);
+    assert(calc.trees_[calc.trees_.getSize() - 1].root_->getData().node_type == NODE_NUMBER);
+
+    return calc.trees_[calc.trees_.getSize() - 1].root_->getData().number;
 }
 
 //------------------------------------------------------------------------------
 
-NUM_TYPE Str2Num (char* str)
+char* Num2Str (NUM_TYPE number)
 {
-    char* endstr = nullptr;
-    NUM_TYPE number = 0;
-    double num = 0;
-    char sign = 0;
-    num = strtod(str, &endstr);
+    char* str = new char[64] {};
 
-    if ((str == endstr) && (*str == 'i'))
-	return I;
-
-    if (*endstr == 'i')
-        return num * I;
-    else
-        number += num;
-    
-    if (*endstr == '+')
+    if (isnan(real(number)) || isnan(imag(number)))
     {
-        sign = 1;
-        ++endstr;
-    }
-    else if (*endstr == '-')
-    {
-        sign = -1;
-        ++endstr;
-    }
-    else if (*endstr == '\0')
-    {
-        return number;
+        sprintf(str, "Not a number (Nan)");
+        return str;
     }
 
-    str = endstr;
-    endstr = nullptr;
-    num = strtod(str, &endstr);
+    char* word = new char[64] {};
+    char* begin = str;
 
-    if ((str == endstr) && (*str == 'i'))
-	num = 1;
+    bool was_real = 0;
+    if (abs(real(number)) > NIL)
+    {
+        sprintf(word, "%lf", real(number));
 
-    number += num * sign * I;
+        if (abs(real(number) - (int)real(number)) <= NIL)
+        {
+            char* s = strchr(word, '.');
+            if (s != nullptr) *s = '\0';
+        }
 
-    return number;
+        sprintf(str, "%s", word);
+        str += strlen(word);
+        was_real = 1;
+    }
+
+    bool was_imag = 0;
+    if (abs(imag(number)) > NIL)
+    {
+        sprintf(word, "%lf", imag(number));
+
+        if (abs(imag(number) - (int)imag(number)) <= NIL)
+        {
+            char* s = strchr(word, '.');
+            if (s != nullptr) *s = '\0';
+        }
+
+        if (was_real && (imag(number) > NIL))
+            sprintf(str++, "+");
+
+        if ( (abs(imag(number) - static_cast<NUM_TYPE>(1)) <= NIL) ||
+             (abs(imag(number) + static_cast<NUM_TYPE>(1)) <= NIL) )
+        {
+            sprintf(str, "i");
+        }
+        else
+        {
+            sprintf(str, "%s", word);
+            str += strlen(word);
+            sprintf(str, "i");
+        }
+        
+        was_imag = 1;
+    }
+
+    if (not was_real && not was_imag)
+        sprintf(str, "0");
+
+    delete [] word;
+
+    return begin;
 }
 
 //------------------------------------------------------------------------------
@@ -464,8 +529,8 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
         if ((node_cur->right_ == nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_FUNC_WRONG_ARGUMENT;
 
-        sprintf(*str, "%s", node_cur->getData().op.word);
-        *str += strlen(node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().word);
+        *str += strlen(node_cur->getData().word);
 
         sprintf(*str, "(");
         *str += 1;
@@ -480,7 +545,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
     case NODE_OPERATOR:
 
         if ((node_cur->right_ == nullptr) ||
-            (node_cur->left_  == nullptr) && (node_cur->getData().op.code != OP_SUB))
+            (node_cur->left_  == nullptr) && (node_cur->getData().op_code != OP_SUB))
             return CALC_TREE_OPER_WRONG_ARGUMENTS;
 
         if (needBrackets(node_cur, node_cur->left_))
@@ -504,7 +569,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
             if (err) return err;
         }
 
-        sprintf(*str, "%s", node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().word);
         *str += 1;
 
         if (needBrackets(node_cur, node_cur->right_))
@@ -535,8 +600,8 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
         if ((node_cur->right_ != nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_NUM_WRONG_ARGUMENT;
 
-        sprintf(*str, "%s", node_cur->getData().op.word);
-        *str += strlen(node_cur->getData().op.word);
+        sprintf(*str, "%s", node_cur->getData().word);
+        *str += strlen(node_cur->getData().word);
 
         break;
 
@@ -553,7 +618,6 @@ int Expr2Tree (Expression& expr, Tree<CalcNodeData>& tree)
     assert(expr.str != nullptr);
 
     del_spaces(expr.str);
-    str_tolower(expr.str);
 
     tree.root_ = pass_Plus_Minus(expr);
     if (tree.root_ == nullptr) return -1;
@@ -577,7 +641,7 @@ Node<CalcNodeData>* pass_Plus_Minus (Expression& expr)
         Node<CalcNodeData>* right = pass_Mul_Div(expr);
 
         node_cur = new Node<CalcNodeData>;
-        node_cur->setData({op_names[OP_SUB], NODE_OPERATOR});
+        node_cur->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
         node_cur->right_ = right;
     }
     else node_cur = pass_Mul_Div(expr);
@@ -592,7 +656,9 @@ Node<CalcNodeData>* pass_Plus_Minus (Expression& expr)
         Node<CalcNodeData>* right = pass_Mul_Div(expr);
 
         node_cur = new Node<CalcNodeData>;
-        node_cur->setData({op_names[(*symb_cur == '-') ? OP_SUB : OP_ADD], NODE_OPERATOR});
+        char op = (*symb_cur == '-') ? OP_SUB : OP_ADD;
+        node_cur->setData({ POISON<NUM_TYPE>, op_names[op].word, op_names[op].code, NODE_OPERATOR });
+
         node_cur->right_ = right;
         node_cur->left_  = left;
     }
@@ -604,7 +670,7 @@ Node<CalcNodeData>* pass_Plus_Minus (Expression& expr)
                    (*expr.symb_cur != '^') &&
                    (*expr.symb_cur != '(') &&
                    (*expr.symb_cur != ')') &&
-                   (*expr.symb_cur != '\0')   ), CALC_SYNTAX_ERROR, expr, 1);
+                   (*expr.symb_cur != '\0') ), CALC_SYNTAX_ERROR, expr, 1);
 
     return node_cur;
 }
@@ -616,7 +682,7 @@ Node<CalcNodeData>* pass_Mul_Div (Expression& expr)
     Node<CalcNodeData>* node_cur = pass_Power(expr);
 
     while ( (*expr.symb_cur == '*') ||
-            (*expr.symb_cur == '/')   )
+            (*expr.symb_cur == '/') )
     {
         char* symb_cur = expr.symb_cur;
         ++expr.symb_cur;
@@ -625,7 +691,9 @@ Node<CalcNodeData>* pass_Mul_Div (Expression& expr)
         Node<CalcNodeData>* right = pass_Power(expr);
 
         node_cur = new Node<CalcNodeData>;
-        node_cur->setData({op_names[(*symb_cur == '*') ? OP_MUL : OP_DIV], NODE_OPERATOR});
+        char op = (*symb_cur == '*') ? OP_MUL : OP_DIV;
+        node_cur->setData({ POISON<NUM_TYPE>, op_names[op].word, op_names[op].code, NODE_OPERATOR });
+
         node_cur->right_ = right;
         node_cur->left_  = left;
     }
@@ -647,7 +715,8 @@ Node<CalcNodeData>* pass_Power (Expression& expr)
         Node<CalcNodeData>* right = pass_Power(expr);
 
         node_cur = new Node<CalcNodeData>;
-        node_cur->setData({op_names[OP_POW], NODE_OPERATOR});
+        node_cur->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
+
         node_cur->right_ = right;
         node_cur->left_  = left;
     }
@@ -705,7 +774,7 @@ Node<CalcNodeData>* pass_Function (Expression& expr)
             Node<CalcNodeData>* arg = pass_Brackets(expr);
 
             Node<CalcNodeData>* node_cur = new Node<CalcNodeData>;
-            node_cur->setData({op_names[code], NODE_FUNCTION});
+            node_cur->setData({ POISON<NUM_TYPE>, op_names[code].word, op_names[code].code, NODE_FUNCTION });
             node_cur->right_ = arg;
 
             return node_cur;
@@ -713,7 +782,7 @@ Node<CalcNodeData>* pass_Function (Expression& expr)
         else
         {
             Node<CalcNodeData>* node_cur = new Node<CalcNodeData>;
-            node_cur->setData({ {0, word}, NODE_VARIABLE });
+            node_cur->setData({ POISON<NUM_TYPE>, word, 0, NODE_VARIABLE });
 
             return node_cur;
         }   
@@ -730,13 +799,14 @@ Node<CalcNodeData>* pass_Number (Expression& expr)
     value = strtod(expr.symb_cur, &expr.symb_cur);
     CHECK_SYNTAX((expr.symb_cur == begin), CALC_SYNTAX_NUMBER_ERROR, expr, 1);
 
-    if (*expr.symb_cur == 'i') ++expr.symb_cur;
-
-    char* number = new char [MAX_STR_LEN] {};
-    memcpy(number, begin, expr.symb_cur - begin);
-
     Node<CalcNodeData>* node_cur = new Node<CalcNodeData>;
-    node_cur->setData({ {0, number}, NODE_NUMBER });
+
+    if (*expr.symb_cur == 'i')
+    {
+        ++expr.symb_cur;
+        node_cur->setData({ {0, value}, nullptr, 0, NODE_NUMBER });
+    }
+    else node_cur->setData({ {value, 0}, nullptr, 0, NODE_NUMBER });
 
     return node_cur;
 }
@@ -745,13 +815,13 @@ Node<CalcNodeData>* pass_Number (Expression& expr)
 
 bool needBrackets (Node<CalcNodeData>* node, Node<CalcNodeData>* child)
 {
-    if  ( ((node-> getData().op.code == OP_MUL) || (node-> getData().op.code == OP_DIV)) &&
-          ((child->getData().op.code == OP_ADD) || (child->getData().op.code == OP_SUB))   )
+    if  ( ((node-> getData().op_code == OP_MUL) || (node-> getData().op_code == OP_DIV)) &&
+          ((child->getData().op_code == OP_ADD) || (child->getData().op_code == OP_SUB))   )
         return true;
     else
-        return ( (node-> getData().op.code   == OP_POW)        &&
+        return ( (node-> getData().op_code   == OP_POW)        &&
                  (child->getData().node_type == NODE_OPERATOR) &&
-                 (child->getData().op.code   != OP_POW)          );
+                 (child->getData().op_code   != OP_POW)          );
 }
 
 //------------------------------------------------------------------------------
@@ -803,24 +873,16 @@ void Optimize (Tree<CalcNodeData>& tree)
 
 //------------------------------------------------------------------------------
 
-#define CALCULATE_ACTION(node, operation)                                              \
-        {                                                                              \
-            NUM_TYPE number1 = 0;                                                      \
-            NUM_TYPE number2 = 0;                                                      \
-                                                                                       \
-            err = sscanf(node->left_ ->getData().op.word, NUM_PRINT_FORMAT, &number1); \
-            assert(err);                                                               \
-                                                                                       \
-            err = sscanf(node->right_->getData().op.word, NUM_PRINT_FORMAT, &number2); \
-            assert(err);                                                               \
-                                                                                       \
-            Node<CalcNodeData>* newnode = new Node<CalcNodeData>;                      \
-            number1 = number1 operation number2;                                       \
-                                                                                       \
-            char* num_str = new char [MAX_STR_LEN] {};                                 \
-            sprintf(num_str, "%.0lf", number1);                                        \
-            newnode->setData({ {0, num_str}, NODE_NUMBER });                           \
-            OPTIMIZE_ACTION(newnode);                                                  \
+#define CALCULATE_ACTION(node, operation)                           \
+        {                                                           \
+            NUM_TYPE number1 = node->left_ ->getData().number;      \
+            NUM_TYPE number2 = node->right_->getData().number;      \
+                                                                    \
+            Node<CalcNodeData>* newnode = new Node<CalcNodeData>;   \
+            number1 = number1 operation number2;                    \
+                                                                    \
+            newnode->setData({ number1, nullptr, 0, NODE_NUMBER }); \
+            OPTIMIZE_ACTION(newnode);                               \
         } //
 
 //------------------------------------------------------------------------------
@@ -840,26 +902,26 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
 
     case NODE_OPERATOR:
 
-        switch (node_cur->getData().op.code)
+        switch (node_cur->getData().op_code)
         {
         case OP_ADD:
         case OP_SUB:
 
             if (node_cur->left_ == nullptr)
             {
-                if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+                if (abs(node_cur->right_->getData().number) <= NIL)
                 {
                     OPTIMIZE_ACTION(node_cur->right_);
                 }
                 else return Optimize(tree, node_cur->right_);
             }
             else
-            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            if (abs(node_cur->left_->getData().number) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->right_);
             }
             else
-            if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+            if (abs(node_cur->right_->getData().number) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->left_);
             }
@@ -867,7 +929,14 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
             if ( (node_cur->left_ ->getData().node_type == NODE_NUMBER) &&
                  (node_cur->right_->getData().node_type == NODE_NUMBER)   )
             {
-                CALCULATE_ACTION(node_cur, +);
+                if (node_cur->getData().op_code == OP_ADD)
+                {
+                    CALCULATE_ACTION(node_cur, +);
+                }
+                else
+                {
+                    CALCULATE_ACTION(node_cur, -);
+                }
             }
             else
             {
@@ -879,22 +948,22 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
 
         case OP_MUL:
 
-            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            if (abs(node_cur->left_->getData().number) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->left_);
             }
             else
-            if (strcmp(node_cur->right_->getData().op.word, "0") == 0)
+            if (abs(node_cur->right_->getData().number) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->right_);
             }
             else
-            if (strcmp(node_cur->left_->getData().op.word, "1") == 0)
+            if (abs(node_cur->left_->getData().number - static_cast<NUM_TYPE>(1)) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->right_);
             }
             else
-            if (strcmp(node_cur->right_->getData().op.word, "1") == 0)
+            if (abs(node_cur->right_->getData().number - static_cast<NUM_TYPE>(1)) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->left_);
             }
@@ -914,21 +983,21 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
 
         case OP_DIV:
 
-            if (strcmp(node_cur->left_->getData().op.word, "0") == 0)
+            if (abs(node_cur->left_->getData().number) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->left_);
             }
             else
-            if (strcmp(node_cur->right_->getData().op.word, "1") == 0)
+            if (abs(node_cur->right_->getData().number - static_cast<NUM_TYPE>(1)) <= NIL)
             {
                 OPTIMIZE_ACTION(node_cur->left_);
             }
             else
-            if ( (strcmp(node_cur->left_->getData().op.word, node_cur->right_->getData().op.word) == 0) &&
+            if ( (abs(node_cur->left_->getData().number - node_cur->right_->getData().number) <= NIL) &&
                  ((node_cur->left_->getData().node_type == NODE_VARIABLE) || (node_cur->left_->getData().node_type == NODE_NUMBER)) )
             {
                 Node<CalcNodeData>* newnode = new Node<CalcNodeData>;
-                newnode->setData({ {0, "1"}, NODE_NUMBER });
+                newnode->setData({ {1, 0}, nullptr, 0, NODE_NUMBER });
 
                 OPTIMIZE_ACTION(newnode);
             }
@@ -952,6 +1021,145 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
     }
 
     return false;
+}
+
+//------------------------------------------------------------------------------
+
+bool isPOISON (NUM_TYPE value)
+{
+    if (isnan(real(value)) || isnan(imag(value)))
+        return 1;
+    else
+        return 0;
+}
+
+//------------------------------------------------------------------------------
+
+void printExprGraph (Tree<CalcNodeData> tree)
+{
+    char graphname[128] = "";
+    sprintf(graphname, "%s.dot", tree.name_);
+    
+    FILE* graph = fopen(graphname, "w");
+    assert(graph != nullptr);
+
+    fprintf(graph, "digraph G{\n" "rankdir = HR;\n node[shape=box];\n");
+
+    printExprGraphNode(graph, tree.root_);
+
+    fprintf(graph, "\tlabelloc=\"t\";"
+                   "\tlabel=\"Expression: %s\";"
+                   "}\n", tree.name_);
+
+    fclose(graph);
+
+    char command[512] = "";
+
+#if defined(WIN32)
+
+    sprintf(command, "win_iconv -f 1251 -t UTF8 \"%s\" > \"new%s\"", graphname, graphname);
+
+    int err = system(command);
+
+    sprintf(command, "dot -Tpng -o %s.png new%s", tree.name_, graphname);
+    if (!err) err = system(command);
+
+    sprintf(command, "del new%s", graphname);
+    if (!err) err = system(command);
+
+    sprintf(command, "del %s", graphname);
+    if (!err) err = system(command);
+
+#elif defined(__linux__)
+
+    sprintf(command, "iconv -f UTF8 -t UTF8 \"%s\" -o \"new%s\"", graphname, graphname);
+
+    int err = system(command);
+
+    sprintf(command, "dot -Tpng -o %s.png new%s", tree.name_, graphname);
+    if (!err) err = system(command);
+
+    sprintf(command, "rm new%s", graphname);
+    if (!err) err = system(command);
+
+    sprintf(command, "rm %s", graphname);
+    if (!err) err = system(command);
+
+#else
+#error Program is only supported by linux or windows platforms
+#endif
+}
+
+//------------------------------------------------------------------------------
+
+void printExprGraphNode (FILE* graph, Node<CalcNodeData>* node_cur)
+{
+    assert(graph != nullptr);
+
+    char* data      = new char[64] {};
+    char* fillcolor = new char[64] {};
+
+    getDataAndColor(node_cur, &data, &fillcolor);
+
+    fprintf(graph, "\t %lu [shape = box, style = filled, color = black, fillcolor = %s, label = \"%s\"]\n", (size_t)node_cur, fillcolor, data);
+
+    if (node_cur->left_ != nullptr)
+    {
+        char* leftdata = new char[64] {};
+        getDataAndColor(node_cur->left_, &leftdata, &fillcolor);
+        fprintf(graph, "\t %lu -> %lu [label=\"left\"]\n", (size_t)node_cur, (size_t)node_cur->left_);
+        delete [] leftdata;
+    }
+
+    if (node_cur->right_ != nullptr)
+    {
+        char* rightdata = new char[64] {};
+        getDataAndColor(node_cur->right_, &rightdata, &fillcolor);
+        fprintf(graph, "\t %lu -> %lu [label=\"right\"]\n", (size_t)node_cur, (size_t)node_cur->right_);
+        delete [] rightdata;
+    }
+
+    delete [] data;
+    delete [] fillcolor;
+
+    if (node_cur->left_  != nullptr) printExprGraphNode(graph, node_cur->left_);
+    if (node_cur->right_ != nullptr) printExprGraphNode(graph, node_cur->right_);
+}
+
+//------------------------------------------------------------------------------
+
+void getDataAndColor (Node<CalcNodeData>* node_cur, char** data, char** fillcolor)
+{
+    switch (node_cur->getData().node_type)
+    {
+    case NODE_FUNCTION:
+    {
+        sprintf(*fillcolor, "tomato");
+        sprintf(*data, "%s()", node_cur->getData().word);
+        break;
+    }
+    case NODE_OPERATOR:
+    {
+        sprintf(*fillcolor, "springgreen2");
+        sprintf(*data, "%s", node_cur->getData().word);
+        break;
+    }
+    case NODE_VARIABLE:
+    {
+        sprintf(*fillcolor, "deepskyblue2");
+        sprintf(*data, "%s", node_cur->getData().word);
+        break;
+    }
+    case NODE_NUMBER:
+    {
+        sprintf(*fillcolor, "darkgoldenrod1");
+        char* strnum = Num2Str(node_cur->getData().number);
+        sprintf(*data, "%s", strnum);
+        delete [] strnum;
+        break;
+    }
+    default: sprintf(*data, "err: %s", node_cur->getData().word); break;
+    }
 }
 
 //------------------------------------------------------------------------------
