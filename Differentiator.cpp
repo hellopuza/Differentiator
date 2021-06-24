@@ -5,7 +5,7 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 #include "Differentiator.h"
@@ -71,7 +71,7 @@ int Differentiator::Run ()
                 Differentiate(tree_.root_);
                 Optimize(tree_);
 
-                tree_.Dump();
+                printExprGraph(tree_);
                 Write();
             }
             tree_.Clean();
@@ -93,7 +93,7 @@ int Differentiator::Run ()
         Differentiate(tree_.root_);
         Optimize(tree_);
 
-        tree_.Dump();
+        printExprGraph(tree_);
         Write();
     }
     
@@ -130,7 +130,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
     case NODE_FUNCTION:
     case NODE_OPERATOR:
 
-        switch (node_cur->getData().op.code)
+        switch (node_cur->getData().op_code)
         {
         case OP_ADD:       // u' + v'
         case OP_SUB:       // u' - v'
@@ -143,7 +143,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
 
             Node<CalcNodeData>* Sum_r = new Node<CalcNodeData>;
 
-            Sum->setData({op_names[node_cur->getData().op.code], NODE_OPERATOR});
+            Sum->setData({ POISON<NUM_TYPE>, op_names[node_cur->getData().op_code].word, op_names[node_cur->getData().op_code].code, NODE_OPERATOR });
 
             Sum->left_  = Sum_l;
             Sum->right_ = Sum_r;
@@ -178,9 +178,9 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rMul_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rMul_r = new Node<CalcNodeData>;
 
-            Sum ->setData({op_names[OP_ADD], NODE_OPERATOR});
-            lMul->setData({op_names[OP_MUL], NODE_OPERATOR});
-            rMul->setData({op_names[OP_MUL], NODE_OPERATOR});
+            Sum ->setData({ POISON<NUM_TYPE>, op_names[OP_ADD].word, op_names[OP_ADD].code, NODE_OPERATOR });
+            lMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
+            rMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
             Sum->left_  = lMul;
             Sum->right_ = rMul;
@@ -216,8 +216,8 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rPow_r = new Node<CalcNodeData>;
 
-            Div ->setData({op_names[OP_DIV], NODE_OPERATOR});
-            rPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            Div ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
+            rPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Div->left_  = lSub;
             Div->right_ = rPow;
@@ -228,16 +228,16 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Div);
 
             *lSub = *node_cur;
-            lSub->setData({op_names[OP_MUL], NODE_OPERATOR});
+            lSub->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
             err = Differentiate(lSub);
             if (err) return err;
 
             lSub = Div->left_;
-            lSub->setData({op_names[OP_SUB], NODE_OPERATOR});
+            lSub->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
 
             *rPow_l = *node_cur->right_;
-            rPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             break;
         }
@@ -262,15 +262,15 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrlDiv_r = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrMul_r  = new Node<CalcNodeData>;
 
-            Mul ->setData({op_names[OP_MUL], NODE_OPERATOR});
-            lPow->setData({op_names[OP_POW], NODE_OPERATOR});
-            rSum->setData({op_names[OP_ADD], NODE_OPERATOR});
+            Mul ->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
+            lPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
+            rSum->setData({ POISON<NUM_TYPE>, op_names[OP_ADD].word, op_names[OP_ADD].code, NODE_OPERATOR });
 
-            rlMul->setData({op_names[OP_MUL], NODE_OPERATOR});
-            rrMul->setData({op_names[OP_MUL], NODE_OPERATOR});
+            rlMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
+            rrMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
-            rlrLn ->setData({op_names[OP_LN],  NODE_FUNCTION});
-            rrlDiv->setData({op_names[OP_DIV], NODE_OPERATOR});
+            rlrLn ->setData({ POISON<NUM_TYPE>, op_names[OP_LN].word,  op_names[OP_LN].code,  NODE_FUNCTION });
+            rrlDiv->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
             Mul->left_  = lPow;
             Mul->right_ = rSum;
@@ -327,12 +327,12 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrrrPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrrrPow_r = new Node<CalcNodeData>;
 
-            Sub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rDiv->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Sub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rDiv->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
-            rrSqrt ->setData({op_names[OP_SQRT], NODE_FUNCTION});
-            rrrSub ->setData({op_names[OP_SUB],  NODE_OPERATOR});
-            rrrrPow->setData({op_names[OP_POW],  NODE_OPERATOR});
+            rrSqrt ->setData({ POISON<NUM_TYPE>, op_names[OP_SQRT].word, op_names[OP_SQRT].code, NODE_FUNCTION });
+            rrrSub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word,  op_names[OP_SUB].code,  NODE_OPERATOR });
+            rrrrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word,  op_names[OP_POW].code,  NODE_OPERATOR });
 
             Sub->right_ = rDiv;
 
@@ -349,10 +349,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Sub);
 
             *rDiv_l = *node_cur->right_;
-            rrrSub_l->setData({{0, "1"}, NODE_NUMBER});
+            rrrSub_l->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
             
             *rrrrPow_l = *node_cur->right_;
-            rrrrPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrrrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(rDiv_l);
             if (err) return err;
@@ -372,11 +372,11 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrlPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrlPow_r = new Node<CalcNodeData>;
 
-            Div  ->setData({op_names[OP_DIV],  NODE_OPERATOR});
-            rSqrt->setData({op_names[OP_SQRT], NODE_FUNCTION});
+            Div  ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word,  op_names[OP_DIV].code,  NODE_OPERATOR });
+            rSqrt->setData({ POISON<NUM_TYPE>, op_names[OP_SQRT].word, op_names[OP_SQRT].code, NODE_FUNCTION });
 
-            rrSub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rrlPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            rrSub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rrlPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Div->left_  = Div_l;
             Div->right_ = rSqrt;
@@ -393,9 +393,9 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             *Div_l = *node_cur->right_;
 
             *rrlPow_l = *node_cur->right_;
-            rrlPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrlPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
-            rrSub_r->setData({{0, "1"}, NODE_NUMBER});
+            rrSub_r->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -416,11 +416,11 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrrPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrrPow_r = new Node<CalcNodeData>;
 
-            Sub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rDiv->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Sub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rDiv->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
-            rrSum ->setData({op_names[OP_ADD], NODE_OPERATOR});
-            rrrPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            rrSum ->setData({ POISON<NUM_TYPE>, op_names[OP_ADD].word, op_names[OP_ADD].code, NODE_OPERATOR });
+            rrrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Sub->right_ = rDiv;
 
@@ -436,10 +436,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Sub);
 
             *rDiv_l = *node_cur->right_;
-            rrSum_l->setData({{0, "1"}, NODE_NUMBER});
+            rrSum_l->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
 
             *rrrPow_l = *node_cur->right_;
-            rrrPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(rDiv_l);
             if (err) return err;
@@ -458,9 +458,9 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrPow_r = new Node<CalcNodeData>;
 
-            Div  ->setData({op_names[OP_DIV], NODE_OPERATOR});
-            rSub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rrPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            Div  ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
+            rSub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Div->left_  = Div_l;
             Div->right_ = rSub;
@@ -474,10 +474,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Div);
 
             *Div_l = *node_cur->right_;
-            rSub_l->setData({{0, "1"}, NODE_NUMBER});
+            rSub_l->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
 
             *rrPow_l = *node_cur->right_;
-            rrPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -498,15 +498,15 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrrPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrrPow_r = new Node<CalcNodeData>;
 
-            Div  ->setData({op_names[OP_DIV],  NODE_OPERATOR});
-            rSqrt->setData({op_names[OP_SQRT], NODE_FUNCTION});
+            Div  ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word,  op_names[OP_DIV].code,  NODE_OPERATOR });
+            rSqrt->setData({ POISON<NUM_TYPE>, op_names[OP_SQRT].word, op_names[OP_SQRT].code, NODE_FUNCTION });
 
-            if ((node_cur->getData().op.code) == OP_ARCSIN)
-                rrSum->setData({op_names[OP_SUB], NODE_OPERATOR});
+            if ((node_cur->getData().op_code) == OP_ARCSIN)
+                rrSum->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
             else
-                rrSum->setData({op_names[OP_ADD], NODE_OPERATOR});
+                rrSum->setData({ POISON<NUM_TYPE>, op_names[OP_ADD].word, op_names[OP_ADD].code, NODE_OPERATOR });
 
-            rrrPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            rrrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Div->left_  = Div_l;
             Div->right_ = rSqrt;
@@ -521,10 +521,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Div);
 
             *Div_l = *node_cur->right_;
-            rrSum_l->setData({{0, "1"}, NODE_NUMBER});
+            rrSum_l->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
 
             *rrrPow_l = *node_cur->right_;
-            rrrPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -545,14 +545,14 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrPow_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrPow_r = new Node<CalcNodeData>;
 
-            Div->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Div->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
-            if ((node_cur->getData().op.code) == OP_ARCTAN)
-                rSum->setData({op_names[OP_ADD], NODE_OPERATOR});
+            if ((node_cur->getData().op_code) == OP_ARCTAN)
+                rSum->setData({ POISON<NUM_TYPE>, op_names[OP_ADD].word, op_names[OP_ADD].code, NODE_OPERATOR });
             else
-                rSum->setData({op_names[OP_SUB], NODE_OPERATOR});
+                rSum->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
 
-            rrPow->setData({op_names[OP_POW], NODE_OPERATOR});
+            rrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
             Div->left_  = Div_l;
             Div->right_ = rSum;
@@ -566,57 +566,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Div);
 
             *Div_l = *node_cur->right_;
-            rSum_l->setData({{0, "1"}, NODE_NUMBER});
+            rSum_l->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
 
             *rrPow_l = *node_cur->right_;
-            rrPow_r->setData({{0, "2"}, NODE_NUMBER});
-
-            err = Differentiate(Div_l);
-            if (err) return err;
-
-            break;
-        }
-        case OP_CBRT:      // u'/(3*u^(2/3))
-        {
-            Node<CalcNodeData>* Div   = new Node<CalcNodeData>;
-            Node<CalcNodeData>* Div_l = new Node<CalcNodeData>;
-            Node<CalcNodeData>* rMul  = new Node<CalcNodeData>;
-
-            Node<CalcNodeData>* rMul_l = new Node<CalcNodeData>;
-            Node<CalcNodeData>* rrPow  = new Node<CalcNodeData>;
-            
-            Node<CalcNodeData>* rrPow_l = new Node<CalcNodeData>;
-            Node<CalcNodeData>* rrrDiv  = new Node<CalcNodeData>;
-
-            Node<CalcNodeData>* rrrDiv_l = new Node<CalcNodeData>;
-            Node<CalcNodeData>* rrrDiv_r = new Node<CalcNodeData>;
-
-            Div ->setData({op_names[OP_DIV], NODE_OPERATOR});
-            rMul->setData({op_names[OP_MUL], NODE_OPERATOR});
-
-            rrPow ->setData({op_names[OP_POW], NODE_OPERATOR});
-            rrrDiv->setData({op_names[OP_DIV], NODE_OPERATOR});
-
-            Div->left_  = Div_l;
-            Div->right_ = rMul;
-
-            rMul->left_  = rMul_l;
-            rMul->right_ = rrPow;
-
-            rrPow->left_  = rrPow_l;
-            rrPow->right_ = rrrDiv;
-
-            rrrDiv->left_  = rrrDiv_l;
-            rrrDiv->right_ = rrrDiv_r;
-
-            PREV_CONNECT(node_cur, Div);
-
-            *Div_l = *node_cur->right_;
-            rMul_l->setData({{0, "3"}, NODE_NUMBER});
-
-            *rrPow_l = *node_cur->right_;
-            rrrDiv_l->setData({{0, "2"}, NODE_NUMBER});
-            rrrDiv_r->setData({{0, "3"}, NODE_NUMBER});
+            rrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -632,10 +585,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrSin   = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrSin_r = new Node<CalcNodeData>;
             
-            Sub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rMul->setData({op_names[OP_MUL], NODE_OPERATOR});
+            Sub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
-            rrSin->setData({op_names[OP_SIN], NODE_FUNCTION});
+            rrSin->setData({ POISON<NUM_TYPE>, op_names[OP_SIN].word, op_names[OP_SIN].code, NODE_FUNCTION });
 
             Sub->right_ = rMul;
 
@@ -662,8 +615,8 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rSinh   = new Node<CalcNodeData>;
             Node<CalcNodeData>* rSinh_r = new Node<CalcNodeData>;
             
-            Mul  ->setData({op_names[OP_SUB],  NODE_OPERATOR});
-            rSinh->setData({op_names[OP_SINH], NODE_FUNCTION});
+            Mul  ->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word,  op_names[OP_MUL].code,  NODE_OPERATOR });
+            rSinh->setData({ POISON<NUM_TYPE>, op_names[OP_SINH].word, op_names[OP_SINH].code, NODE_FUNCTION });
 
             Mul->left_  = Mul_l;
             Mul->right_ = rSinh;
@@ -694,15 +647,15 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
 
             Node<CalcNodeData>* rrlSin_r = new Node<CalcNodeData>;
             
-            Sub ->setData({op_names[OP_SUB], NODE_OPERATOR});
-            rDiv->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Sub ->setData({ POISON<NUM_TYPE>, op_names[OP_SUB].word, op_names[OP_SUB].code, NODE_OPERATOR });
+            rDiv->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
-            rrPow ->setData({op_names[OP_POW], NODE_OPERATOR});
+            rrPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
-            if ((node_cur->getData().op.code) == OP_COT)
-                rrlSin->setData({op_names[OP_SIN], NODE_FUNCTION});
+            if ((node_cur->getData().op_code) == OP_COT)
+                rrlSin->setData({ POISON<NUM_TYPE>, op_names[OP_SIN].word, op_names[OP_SIN].code, NODE_FUNCTION });
             else
-                rrlSin->setData({op_names[OP_SINH], NODE_FUNCTION});
+                rrlSin->setData({ POISON<NUM_TYPE>, op_names[OP_SINH].word, op_names[OP_SINH].code, NODE_FUNCTION });
 
             Sub->right_ = rDiv;
 
@@ -719,7 +672,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             *rDiv_l   = *node_cur->right_;
             *rrlSin_r = *node_cur->right_;
 
-            rrPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rrPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(rDiv_l);
             if (err) return err;
@@ -734,8 +687,8 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
 
             Node<CalcNodeData>* rExp_r = new Node<CalcNodeData>;
             
-            Mul ->setData({op_names[OP_MUL], NODE_OPERATOR});
-            rExp->setData({op_names[OP_EXP], NODE_FUNCTION});
+            Mul ->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
+            rExp->setData({ POISON<NUM_TYPE>, op_names[OP_EXP].word, op_names[OP_EXP].code, NODE_FUNCTION });
 
             Mul->left_  = Mul_l;
             Mul->right_ = rExp;
@@ -762,9 +715,9 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rrLn   = new Node<CalcNodeData>;
             Node<CalcNodeData>* rrLn_r = new Node<CalcNodeData>;
             
-            Div ->setData({op_names[OP_DIV], NODE_OPERATOR});
-            rMul->setData({op_names[OP_MUL], NODE_OPERATOR});
-            rrLn->setData({op_names[OP_LN],  NODE_FUNCTION});
+            Div ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
+            rMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
+            rrLn->setData({ POISON<NUM_TYPE>, op_names[OP_LN].word,  op_names[OP_LN].code,  NODE_FUNCTION });
 
             Div->left_  = Div_l;
             Div->right_ = rMul;
@@ -779,7 +732,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             *Div_l  = *node_cur->right_;
             *rMul_l = *node_cur->right_;
 
-            rrLn_r->setData({{0, "10"}, NODE_NUMBER});
+            rrLn_r->setData({ NUM_TYPE{10, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -792,7 +745,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* Div_l = new Node<CalcNodeData>;
             Node<CalcNodeData>* Div_r  = new Node<CalcNodeData>;
             
-            Div->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Div->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
 
             Div->left_  = Div_l;
             Div->right_ = Div_r;
@@ -816,12 +769,12 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             Node<CalcNodeData>* rCos   = new Node<CalcNodeData>;
             Node<CalcNodeData>* rCos_r = new Node<CalcNodeData>;
             
-            Mul->setData({op_names[OP_MUL], NODE_OPERATOR});
+            Mul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
-            if ((node_cur->getData().op.code) == OP_SIN)
-                rCos->setData({op_names[OP_COS], NODE_FUNCTION});
+            if ((node_cur->getData().op_code) == OP_SIN)
+                rCos->setData({ POISON<NUM_TYPE>, op_names[OP_COS].word, op_names[OP_COS].code, NODE_FUNCTION });
             else
-                rCos->setData({op_names[OP_COSH], NODE_FUNCTION});
+                rCos->setData({ POISON<NUM_TYPE>, op_names[OP_COSH].word, op_names[OP_COSH].code, NODE_FUNCTION });
 
             Mul->left_  = Mul_l;
             Mul->right_ = rCos;
@@ -849,10 +802,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             
             Node<CalcNodeData>* rrSqrt_r = new Node<CalcNodeData>;
 
-            Div ->setData({op_names[OP_DIV], NODE_OPERATOR});
-            rMul->setData({op_names[OP_MUL], NODE_OPERATOR});
+            Div ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
+            rMul->setData({ POISON<NUM_TYPE>, op_names[OP_MUL].word, op_names[OP_MUL].code, NODE_OPERATOR });
 
-            rrSqrt->setData({op_names[OP_SQRT], NODE_FUNCTION});
+            rrSqrt->setData({ POISON<NUM_TYPE>, op_names[OP_SQRT].word, op_names[OP_SQRT].code, NODE_FUNCTION });
 
             Div->left_  = Div_l;
             Div->right_ = rMul;
@@ -865,7 +818,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             PREV_CONNECT(node_cur, Div);
 
             *Div_l = *node_cur->right_;
-            rMul_l->setData({{0, "2"}, NODE_NUMBER});
+            rMul_l->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             *rrSqrt_r = *node_cur->right_;
 
@@ -887,14 +840,13 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
 
             Node<CalcNodeData>* rlCos_r = new Node<CalcNodeData>;
             
-            Div->setData({op_names[OP_DIV], NODE_OPERATOR});
+            Div ->setData({ POISON<NUM_TYPE>, op_names[OP_DIV].word, op_names[OP_DIV].code, NODE_OPERATOR });
+            rPow->setData({ POISON<NUM_TYPE>, op_names[OP_POW].word, op_names[OP_POW].code, NODE_OPERATOR });
 
-            rPow ->setData({op_names[OP_POW], NODE_OPERATOR});
-
-            if ((node_cur->getData().op.code) == OP_TAN)
-                rlCos->setData({op_names[OP_COS], NODE_FUNCTION});
+            if ((node_cur->getData().op_code) == OP_TAN)
+                rlCos->setData({ POISON<NUM_TYPE>, op_names[OP_COS].word, op_names[OP_COS].code, NODE_FUNCTION });
             else
-                rlCos->setData({op_names[OP_COSH], NODE_FUNCTION});
+                rlCos->setData({ POISON<NUM_TYPE>, op_names[OP_COSH].word, op_names[OP_COSH].code, NODE_FUNCTION });
 
             Div->left_  = Div_l;
             Div->right_ = rPow;
@@ -909,7 +861,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
             *Div_l   = *node_cur->right_;
             *rlCos_r = *node_cur->right_;
 
-            rPow_r->setData({{0, "2"}, NODE_NUMBER});
+            rPow_r->setData({ NUM_TYPE{2, 0}, nullptr, 0, NODE_NUMBER });
 
             err = Differentiate(Div_l);
             if (err) return err;
@@ -924,10 +876,10 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
     {
         Node<CalcNodeData>* Num = new Node<CalcNodeData>;
 
-        if (strcmp(node_cur->getData().op.word, diff_var_.name) == 0)
-            Num->setData({{0, "1"}, NODE_NUMBER});
+        if (strcmp(node_cur->getData().word, diff_var_.name) == 0)
+            Num->setData({ NUM_TYPE{1, 0}, nullptr, 0, NODE_NUMBER });
         else
-            Num->setData({{0, "0"}, NODE_NUMBER});
+            Num->setData({ NUM_TYPE{0, 0}, nullptr, 0, NODE_NUMBER });
 
         PREV_CONNECT(node_cur, Num);
 
@@ -937,7 +889,7 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
     {
         Node<CalcNodeData>* Num = new Node<CalcNodeData>;
 
-        Num->setData({{0, "0"}, NODE_NUMBER});
+        Num->setData({ NUM_TYPE{0, 0}, nullptr, 0, NODE_NUMBER });
 
         PREV_CONNECT(node_cur, Num);
 
@@ -947,7 +899,6 @@ int Differentiator::Differentiate (Node<CalcNodeData>* node_cur)
     default: assert(0);
     }
 
-    node_cur->~Node();
     delete node_cur;
 
     return DIFF_OK;

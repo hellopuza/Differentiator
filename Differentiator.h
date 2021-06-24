@@ -6,14 +6,13 @@
     * Author:      Artem Puzankov                                              *
     * Email:       puzankov.ao@phystech.edu                                    *
     * GitHub:      https://github.com/hellopuza                                *
-    * Copyright © 2021 Artem Puzankov. All rights reserved.                    *
+    * Copyright Â© 2021 Artem Puzankov. All rights reserved.                    *
     *///------------------------------------------------------------------------
 
 #ifndef DIFFERENTIATOR_H_INCLUDED
 #define DIFFERENTIATOR_H_INCLUDED
 
 #define _CRT_SECURE_NO_WARNINGS
-//#define NDEBUG
 
 
 #if defined (__GNUC__) || defined (__clang__) || defined (__clang_major__)
@@ -103,7 +102,7 @@ private:
     int state_;
     char* filename_;
 
-    Variable           diff_var_ = {0, "x"};
+    Variable           diff_var_ = {POISON<NUM_TYPE>, "x"};
     Tree<CalcNodeData> tree_;
     Stack<Variable>    constants_;
 
