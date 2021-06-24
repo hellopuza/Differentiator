@@ -227,6 +227,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
             if (strcmp(variables_[i].name, node_cur->getData().word) == 0)
             {
                 index = i;
+                delete [] node_cur->getData().word;
                 break;
             }
         
@@ -507,7 +508,6 @@ int Tree2Expr (const Tree<CalcNodeData>& tree, Expression& expr)
     expr.symb_cur = expr.str;
     int err = Node2Str(tree.root_, &expr.symb_cur);
     CALC_ASSERTOK(err, err);
-
     expr.symb_cur = expr.str;
 
     return err;
@@ -525,7 +525,7 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
     switch (node_cur->getData().node_type)
     {
     case NODE_FUNCTION:
-
+    {
         if ((node_cur->right_ == nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_FUNC_WRONG_ARGUMENT;
 
@@ -541,9 +541,9 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
         sprintf(*str, ")");
         *str += 1;
         break;
-
+    }
     case NODE_OPERATOR:
-
+    {
         if ((node_cur->right_ == nullptr) ||
             (node_cur->left_  == nullptr) && (node_cur->getData().op_code != OP_SUB))
             return CALC_TREE_OPER_WRONG_ARGUMENTS;
@@ -589,22 +589,29 @@ int Node2Str (Node<CalcNodeData>* node_cur, char** str)
             if (err) return err;
         }
         break;
-    
+    }
     case NODE_VARIABLE:
-
+    {
         if ((node_cur->right_ != nullptr) || (node_cur->left_ != nullptr))
             return CALC_TREE_VAR_WRONG_ARGUMENT;
-    
-    case NODE_NUMBER:
-
-        if ((node_cur->right_ != nullptr) || (node_cur->left_ != nullptr))
-            return CALC_TREE_NUM_WRONG_ARGUMENT;
 
         sprintf(*str, "%s", node_cur->getData().word);
         *str += strlen(node_cur->getData().word);
 
         break;
+    }
+    case NODE_NUMBER:
+    {
+        if ((node_cur->right_ != nullptr) || (node_cur->left_ != nullptr))
+            return CALC_TREE_NUM_WRONG_ARGUMENT;
 
+        char* number = Num2Str(node_cur->getData().number);
+        sprintf(*str, "%s", number);
+        *str += strlen(number);
+        delete [] number;
+
+        break;
+    }
     default: assert(0);
     }
 
@@ -768,6 +775,8 @@ Node<CalcNodeData>* pass_Function (Expression& expr)
         if (*expr.symb_cur == '(')
         {
             int code = findFunc(word);
+            delete [] word;
+
             Expression old = { expr.str, expr.symb_cur - index };
             CHECK_SYNTAX((code == 0), CALC_SYNTAX_UNIDENTIFIED_FUNCTION, old, index);
 
@@ -866,7 +875,6 @@ void Optimize (Tree<CalcNodeData>& tree)
             node_to_place->prev_ = node_cur->prev_;      \
             node_to_place = nullptr;                     \
                                                          \
-            node_cur->~Node();                           \
             delete node_cur;                             \
             return true;                                 \
         } //
