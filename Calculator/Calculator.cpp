@@ -168,10 +168,6 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         #undef ONE
         #undef TWO
 
-        node_cur->right_->~Node();
-        delete node_cur->right_;
-        node_cur->right_ = nullptr;
-
         node_cur->setData({ number, node_cur->getData().word, node_cur->getData().op_code, node_cur->getData().node_type });
         break;
     }
@@ -199,17 +195,6 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         case OP_SUB:  number = left_num - right_num;     break;
         case OP_POW:  number = pow(left_num, right_num); break;
         default: assert(0);
-        }
-
-        node_cur->right_->~Node();
-        delete node_cur->right_;
-        node_cur->right_ = nullptr;
-
-        if (node_cur->left_ != nullptr)
-        {
-            node_cur->left_->~Node();
-            delete node_cur->left_;
-            node_cur->left_ = nullptr;
         }
 
         node_cur->setData({ number, node_cur->getData().word, node_cur->getData().op_code, node_cur->getData().node_type });
