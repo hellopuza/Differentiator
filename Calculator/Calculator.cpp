@@ -134,7 +134,6 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         assert((node_cur->right_ != nullptr) && (node_cur->left_ == nullptr));
         int err = Calculate(node_cur->right_);
         if (err) return err;
-        assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
         number = node_cur->right_->getData().number;
 
@@ -173,7 +172,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         delete node_cur->right_;
         node_cur->right_ = nullptr;
 
-        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
+        node_cur->setData({ number, node_cur->getData().word, node_cur->getData().op_code, node_cur->getData().node_type });
         break;
     }
     case NODE_OPERATOR:
@@ -182,7 +181,6 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
         {
             int err = Calculate(node_cur->left_);
             if (err) return err;
-            assert(node_cur->left_->getData().node_type == NODE_NUMBER);
 
             left_num = node_cur->left_->getData().number;
         }
@@ -190,7 +188,6 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
 
         int err = Calculate(node_cur->right_);
         if (err) return err;
-        assert(node_cur->right_->getData().node_type == NODE_NUMBER);
 
         right_num = node_cur->right_->getData().number;
 
@@ -215,7 +212,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
             node_cur->left_ = nullptr;
         }
 
-        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
+        node_cur->setData({ number, node_cur->getData().word, node_cur->getData().op_code, node_cur->getData().node_type });
         break;
     }
     case NODE_VARIABLE:
@@ -246,7 +243,7 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur)
             return CALC_UNIDENTIFIED_VARIABLE;
         }
 
-        node_cur->setData({ number, nullptr, 0, NODE_NUMBER });
+        node_cur->setData({ number, node_cur->getData().word, node_cur->getData().op_code, node_cur->getData().node_type });
         break;
     }
     case NODE_NUMBER:
@@ -409,14 +406,14 @@ NUM_TYPE scanVar (Calculator& calc, char* varname)
     }
     delete [] expr;
 
+    printExprGraph(vartree);
     calc.trees_.Push(vartree);
-    int err = calc.Calculate(calc.trees_[calc.trees_.getSize() - 1].root_);
+    size_t trees_size = calc.trees_.getSize();
+    int err = calc.Calculate(calc.trees_[trees_size - 1].root_);
     if (err == CALC_UNIDENTIFIED_VARIABLE)
         return POISON<NUM_TYPE>;
 
-    assert(calc.trees_[calc.trees_.getSize() - 1].root_->getData().node_type == NODE_NUMBER);
-
-    return calc.trees_[calc.trees_.getSize() - 1].root_->getData().number;
+    return calc.trees_[trees_size - 1].root_->getData().number;
 }
 
 //------------------------------------------------------------------------------

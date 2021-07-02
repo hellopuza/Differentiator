@@ -34,7 +34,7 @@
 #include <math.h>
 
 
-#define NUM_TYPE         std::complex<double>
+#define NUM_TYPE std::complex<double>
 
 const size_t NUM_TYPE_SIZE = sizeof(NUM_TYPE);
 
