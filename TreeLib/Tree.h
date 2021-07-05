@@ -17,9 +17,11 @@
 
 #include "../StringLib/StringLib.h"
 
+#define NO_DUMP
 #define NO_HASH
 #include "../StackLib/Stack.h"
 #undef NO_HASH
+#undef NO_DUMP
 
 #include "TreeConfig.h"
 #include <type_traits>

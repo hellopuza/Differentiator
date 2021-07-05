@@ -52,7 +52,7 @@ enum DifferentiatorErrors
     DIFF_WRONG_TREE_ONE_CHILD                                              ,
 };
 
-static const char* diff_errstr[] =
+char const * const diff_errstr[] =
 {
     "ERROR"                                                                ,
     "OK"                                                                   ,
@@ -67,7 +67,7 @@ static const char* diff_errstr[] =
     "Every node must have 0 or 2 children"                                 ,
 };
 
-static const char* DIFFERENTIATOR_LOGNAME = "differentiator.log";
+char const * const DIFFERENTIATOR_LOGNAME = "differentiator.log";
 
 #define BASE_CHECK if (tree_.Check ())                                                                    \
                    {                                                                                      \
