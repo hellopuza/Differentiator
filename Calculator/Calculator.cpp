@@ -70,7 +70,7 @@ int Calculator::Run ()
             delete [] expr;
             if (!err)
             {
-                printExprGraph(trees_[0]);
+                //printExprGraph(trees_[0]);
 
                 err = Calculate(trees_[0].root_, true);
                 if (err)
@@ -79,6 +79,7 @@ int Calculator::Run ()
                     Write();
             }
             char* tree_name = trees_[0].name_;
+
 
             trees_.Clean();
             variables_.Clean();
@@ -102,7 +103,7 @@ int Calculator::Run ()
         delete [] expr;
         if (err) return err;
 
-        printExprGraph(trees_[0]);
+        //printExprGraph(trees_[0]);
 
         err = Calculate(trees_[0].root_, true);
         if (err)
@@ -186,10 +187,10 @@ int Calculator::Calculate (Node<CalcNodeData>* node_cur, bool with_new_var)
 
         switch (node_cur->getData().op_code)
         {
-        case OP_MUL:  number = left_num * right_num;     break;
         case OP_ADD:  number = left_num + right_num;     break;
-        case OP_DIV:  number = left_num / right_num;     break;
         case OP_SUB:  number = left_num - right_num;     break;
+        case OP_MUL:  number = left_num * right_num;     break;
+        case OP_DIV:  number = left_num / right_num;     break;
         case OP_POW:  number = pow(left_num, right_num); break;
         default: assert(0);
         }
@@ -389,7 +390,8 @@ NUM_TYPE scanVar (Calculator& calc, char* varname)
     }
     delete [] expr;
 
-    printExprGraph(vartree);
+    //printExprGraph(vartree);
+
     calc.trees_.Push(vartree);
     size_t trees_size = calc.trees_.getSize();
     int err = calc.Calculate(calc.trees_[trees_size - 1].root_, true);
@@ -919,16 +921,7 @@ bool Optimize (Tree<CalcNodeData>& tree, Node<CalcNodeData>* node_cur)
             else
             if (abs(node_cur->left_->getData().number) <= NIL)
             {
-                if (node_cur->getData().op_code == OP_SUB)
-                {
-                    delete node_cur->left_;
-                    node_cur->left_ = nullptr;
-                    return true;
-                }
-                else
-                {
-                    OPTIMIZE_ACTION(node_cur->right_);
-                }
+                OPTIMIZE_ACTION(node_cur->right_);
             }
             else
             if (abs(node_cur->right_->getData().number) <= NIL)
